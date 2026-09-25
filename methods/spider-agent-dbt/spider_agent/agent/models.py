@@ -34,7 +34,7 @@ def call_llm(payload):
         for i in range(3):
             try:
                 response = requests.post(
-                            "https://api.openai.com/v1/chat/completions",
+                            "http://localhost:11434/v1/chat/completions",
                             headers=headers,
                             json=payload
                         )

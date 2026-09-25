@@ -66,7 +66,8 @@ spider2-lite/resource/databases/local/*.sqlite
 **/__pycache__/
 **/launch.json
 
-*.DS_Store
+.DS_Store
+**/.DS_Store
 *.pyc
 
 
@@ -141,3 +142,27 @@ spider2-lite/resource/databases/spider2-localdb
 credentials/
 **/credentials/
 
+# ─── Credentials (broad catch-all) ──────────────────────────
+**/bigquery_credential*.json
+**/snowflake_credential*.json
+**/*.pem
+**/*.key
+
+# ─── Local SQLite databases (local_sqlite folder) ────────────
+spider2-lite/resource/databases/local_sqlite/
+
+# ─── Zip artifacts ───────────────────────────────────────────
+spider2-dbt/*.zip
+
+# ─── Python environments & build artifacts ───────────────────
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+.mypy_cache/
+.pytest_cache/
+
+# ─── Jupyter ─────────────────────────────────────────────────
+.ipynb_checkpoints/
+**/.ipynb_checkpoints/
