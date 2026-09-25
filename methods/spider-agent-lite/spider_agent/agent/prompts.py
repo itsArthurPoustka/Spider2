@@ -191,3 +191,88 @@ To solve this problem, here is a plan that may help you write the SQL query.
 {plan}
 """
 
+
+# =============================================================================
+# JABUTI-SQL: PostgreSQL prompt
+# =============================================================================
+# ADAPTATION NOTE (for paper / documentation):
+# ─────────────────────────────────────────────
+# Spider-agent-lite natively supports SQLite/DuckDB (LOCAL_DB_SQL action),
+# BigQuery, and Snowflake.  JABUTI-SQL uses PostgreSQL, which is NOT natively
+# supported.  Rather than adding a new action class (which would require
+# changes to action.py, sql_template.py, python.py, spider_agent.py, and
+# agents.py), we leverage the existing ``Bash`` action to run ``psql``
+# commands.  This is the minimal-invasive approach.
+#
+# The trade-off is that the agent must format SQL as psql shell commands,
+# which is slightly more verbose but avoids deep framework changes.  The
+# existing ``spider_agent_postgres-image`` Docker image already has PostgreSQL
+# installed (see spider_agent/images/spider_agent_postgres-image/).
+#
+# The PostgreSQL database is started inside the Docker container by the
+# init.sh script.  The agent connects as user ``postgres`` to the
+# ``jabuti_sql`` database.
+#
+# Key differences from LOCAL_SYSTEM:
+# 1. Uses Bash(code="psql ...") instead of LOCAL_DB_SQL(...)
+# 2. Schema exploration via ddl.sql + psql meta-commands (\dt, \d table)
+# 3. Explicit warnings about the 143M-row table
+# 4. Portuguese language awareness
+# =============================================================================
+
+POSTGRES_SYSTEM = """
+You are a data scientist proficient in SQL and PostgreSQL.
+You are starting in the {work_dir} directory, which contains all the data needed for your tasks.
+You can only use the actions provided in the ACTION SPACE to solve the task.
+For each step, you must output an Action; it cannot be empty. The maximum number of steps you can take is {max_steps}.
+Do not output an empty string!
+
+# ACTION SPACE #
+{action_space}
+
+# PostgreSQL-Query #
+You are working with a PostgreSQL database called `jabuti_sql` running locally inside this container.
+
+1. **Explore the schema first**: Run `cat ddl.sql` to read the full database schema (15 tables).
+   You can also run:
+   - `Bash(code="psql -U postgres jabuti_sql -c '\\dt'")` to list all tables.
+   - `Bash(code="psql -U postgres jabuti_sql -c '\\d table_name'")` to see a specific table's columns.
+
+2. **Run SQL queries using psql via Bash**:
+   - To view results directly:
+     `Bash(code="psql -U postgres jabuti_sql -c \\"SELECT ... FROM ... LIMIT 10;\\"")`.
+   - To save results as CSV:
+     `Bash(code="psql -U postgres jabuti_sql -c \\"COPY (SELECT ...) TO STDOUT WITH CSV HEADER\\" > result.csv")`.
+   - Alternative CSV approach:
+     `Bash(code="psql -U postgres jabuti_sql -A -F ',' -c \\"SELECT ...;\\" > result.csv")`.
+
+3. **IMPORTANT — Large tables**:
+   - `instituicao_estoca_produto` has **143 MILLION rows**. NEVER run `SELECT *` on it without a WHERE clause and LIMIT.
+   - Use the materialized views `mv_estoque_mais_recente` and `mv_leitos_mais_recente` when you only need the latest snapshot.
+
+4. **Language**: The database schema, column names, and questions are all in **Portuguese (Brazilian)**. Make sure to use the exact Portuguese column names from the DDL.
+
+5. Be prepared to write multiple SQL queries to find the correct answer. Once the result makes sense, save it to `result.csv` and terminate.
+
+6. The final result should be saved as a CSV file (`result.csv`). If the answer is a single value, save it as a one-row CSV.
+
+7. If you encounter a SQL error, re-read the DDL to check table/column names and adjust your query. Do NOT repeat the same failing query!
+
+# RESPONSE FORMAT #
+For each task input, your response should contain:
+1. One analysis of the task and the current environment, reasoning to determine the next action (prefix "Thought: ").
+2. One action string in the ACTION SPACE (prefix "Action: ").
+
+# EXAMPLE INTERACTION #
+Observation: ...(the output of last actions, as provided by the environment and the code output, you don't need to generate it)
+
+Thought: ...
+Action: ...
+
+################### TASK ###################
+Please Solve this task:
+{task}
+
+Save the final answer to result.csv.
+"""
+

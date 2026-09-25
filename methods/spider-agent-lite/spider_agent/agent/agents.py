@@ -8,7 +8,7 @@ import uuid
 from http import HTTPStatus
 from io import BytesIO
 from typing import Dict, List
-from spider_agent.agent.prompts import BIGQUERY_SYSTEM, LOCAL_SYSTEM, DBT_SYSTEM, SNOWFLAKE_SYSTEM, REFERENCE_PLAN_SYSTEM
+from spider_agent.agent.prompts import BIGQUERY_SYSTEM, LOCAL_SYSTEM, DBT_SYSTEM, SNOWFLAKE_SYSTEM, REFERENCE_PLAN_SYSTEM, POSTGRES_SYSTEM
 from spider_agent.agent.action import Action, Bash, Terminate, CreateFile, EditFile, LOCAL_DB_SQL, BIGQUERY_EXEC_SQL, SNOWFLAKE_EXEC_SQL, BQ_GET_TABLES, BQ_GET_TABLE_INFO, BQ_SAMPLE_ROWS
 from spider_agent.envs.spider_agent import Spider_Agent_Env
 from spider_agent.agent.models import call_llm
@@ -61,7 +61,12 @@ class PromptAgent:
         self.observations = []
         self.codes = []
         self.history_messages = []
-        self.instruction = self.env.task_config['question']
+        # ─── JABUTI-SQL ADAPTATION ───────────────────────────────────────────
+        # JABUTI-SQL JSONL uses 'question' as the field name, which happens to
+        # be the same as Spider2-lite.  We add a fallback to 'instruction' for
+        # robustness in case other benchmarks use a different field name.
+        # ─────────────────────────────────────────────────────────────────────
+        self.instruction = self.env.task_config.get('question', self.env.task_config.get('instruction', ''))
 
         if self.env.task_config['type'] == 'Bigquery':
             self._AVAILABLE_ACTION_CLASSES = [Bash, Terminate, BIGQUERY_EXEC_SQL, CreateFile, EditFile]
@@ -75,6 +80,32 @@ class PromptAgent:
             self._AVAILABLE_ACTION_CLASSES = [Bash, Terminate, CreateFile, EditFile, LOCAL_DB_SQL]
             action_space = "".join([action_cls.get_action_description() for action_cls in self._AVAILABLE_ACTION_CLASSES])
             self.system_message = LOCAL_SYSTEM.format(work_dir=self.work_dir, action_space=action_space, task=self.instruction, max_steps=self.max_steps)
+        # ─── JABUTI-SQL ADAPTATION ───────────────────────────────────────
+        # JABUTI-SQL uses PostgreSQL, which is not natively supported by
+        # spider-agent-lite's LOCAL_DB_SQL action (SQLite/DuckDB only).
+        # Instead of adding a new POSTGRES_EXEC_SQL action class (which
+        # would require changes across 5+ files), we use the existing Bash
+        # action to run `psql` commands.  The POSTGRES_SYSTEM prompt guides
+        # the agent to use psql for schema exploration and query execution.
+        #
+        # The Docker image `spider_agent_postgres-image` already has
+        # PostgreSQL server + client installed.  The database is loaded
+        # during container startup.
+        #
+        # Why Bash-only (no LOCAL_DB_SQL)?  LOCAL_DB_SQL's sql_template.py
+        # uses Python's sqlite3/duckdb modules to run queries.  PostgreSQL
+        # requires psycopg2, which is not in the template.  Using psql via
+        # Bash is simpler and avoids template changes.
+        # ─────────────────────────────────────────────────────────────────
+        elif self.env.task_config.get('type') == 'PostgreSQL':
+            self._AVAILABLE_ACTION_CLASSES = [Bash, Terminate, CreateFile, EditFile]
+            action_space = "".join([action_cls.get_action_description() for action_cls in self._AVAILABLE_ACTION_CLASSES])
+            self.system_message = POSTGRES_SYSTEM.format(
+                work_dir=self.work_dir,
+                action_space=action_space,
+                task=self.instruction,
+                max_steps=self.max_steps
+            )
         elif self.env.task_config['type'] == 'DBT':
             self._AVAILABLE_ACTION_CLASSES = [Bash, Terminate, CreateFile, EditFile, LOCAL_DB_SQL]
             action_space = "".join([action_cls.get_action_description() for action_cls in self._AVAILABLE_ACTION_CLASSES])

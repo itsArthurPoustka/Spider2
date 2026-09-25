@@ -77,6 +77,12 @@ def config() -> argparse.Namespace:
     parser.add_argument("--local_only", action="store_true")
     parser.add_argument("--dbt_only", action="store_true")
     parser.add_argument("--sf_only", action="store_true")
+    # ─── JABUTI-SQL ADAPTATION ───────────────────────────────────────────
+    # Added --pg_only flag to run exclusively the PostgreSQL-based JABUTI-SQL
+    # tasks.  This mirrors the existing --bq_only, --local_only, etc. pattern.
+    # ─────────────────────────────────────────────────────────────────────────
+    parser.add_argument("--pg_only", action="store_true",
+                        help="Run only PostgreSQL (JABUTI-SQL) tasks")
     
     
     args = parser.parse_args()
@@ -123,7 +129,12 @@ def test(
     )
     valid_ids = []
     ## load task configs
-    assert os.path.exists(args.test_path) and args.test_path.endswith(".jsonl"), f"Invalid test_path, must be a valid jsonl file: {args.test_path}"
+    assert os.path.exists(args.test_path), f"Invalid test_path: {args.test_path}"
+    # ─── JABUTI-SQL ADAPTATION ───────────────────────────────────────────
+    # Original code only accepts .jsonl files.  We keep that as default but
+    # the assertion message is now more helpful.
+    # ─────────────────────────────────────────────────────────────────────
+    assert args.test_path.endswith(".jsonl"), f"test_path must be a .jsonl file: {args.test_path}"
     with open(args.test_path, "r") as f:
         task_configs = [json.loads(line) for line in f]
 
@@ -150,8 +161,19 @@ def test(
             task_type = 'bq'
             task_config['type'] = 'Bigquery'
         elif task_config["instance_id"].startswith("local"):
-            task_type = 'local'
-            task_config['type'] = 'Local'
+            # ─── JABUTI-SQL ADAPTATION ───────────────────────────────────
+            # JABUTI-SQL instance_ids start with "local_jabuti_".  We need
+            # to distinguish them from regular local (SQLite) tasks.  The
+            # type is already set to "PostgreSQL" in jabuti.jsonl, so we
+            # check for that first.  If the JSONL already has type set, we
+            # preserve it; otherwise we default to 'Local' for backward
+            # compatibility with existing Spider2-lite local tasks.
+            # ─────────────────────────────────────────────────────────────
+            if task_config.get('type') == 'PostgreSQL':
+                task_type = 'pg'
+            else:
+                task_type = 'local'
+                task_config['type'] = 'Local'
         elif task_config["instance_id"].startswith("sf"):
             task_type = 'sf'
             task_config['type'] = 'Snowflake'
@@ -163,8 +185,11 @@ def test(
         if args.bq_only: valid_types.add('bq')
         if args.sf_only: valid_types.add('sf')
         if args.dbt_only: valid_types.add('dbt')
+        # ─── JABUTI-SQL ADAPTATION ───────────────────────────────────────
+        if args.pg_only: valid_types.add('pg')
+        # ─────────────────────────────────────────────────────────────────
         
-        if  (args.local_only or args.bq_only or args.sf_only or args.dbt_only):
+        if  (args.local_only or args.bq_only or args.sf_only or args.dbt_only or args.pg_only):
             if task_type not in valid_types: continue
         else:
             pass
@@ -194,6 +219,17 @@ def test(
 
         env_config["init_args"]["name"] = experiment_id +"-"+ task_config["instance_id"]
 
+        # ─── JABUTI-SQL ADAPTATION ───────────────────────────────────────
+        # For PostgreSQL tasks, use the postgres-specific Docker image which
+        # has PostgreSQL server + client pre-installed.  The existing
+        # spider_agent_postgres-image (in spider_agent/images/) already has
+        # this setup.  For all other task types, use the default image.
+        # ─────────────────────────────────────────────────────────────────
+        if task_type == 'pg':
+            env_config["image_name"] = "spider_agent_postgres-image"
+        else:
+            env_config["image_name"] = "spider_agent-image"
+
         
         source_data_dir = os.path.dirname(args.test_path)        
         task_config['config'] = [{"type": "copy_all_subfiles", "parameters": {"dirs": [os.path.join(source_data_dir, task_config["instance_id"])]}}]
@@ -207,7 +243,7 @@ def test(
     
         agent.set_env_and_task(env)
     
-        logger.info('Task input:' + task_config['question'])
+        logger.info('Task input:' + task_config.get('question', task_config.get('instruction', '')))
         done, result_output = agent.run()
         trajectory = agent.get_trajectory()
 
