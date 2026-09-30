@@ -35,8 +35,10 @@ def copy_folder(src, dest, files_to_copy=None):
                     # If the item is a directory, use copytree
                     shutil.copytree(full_file_path, os.path.join(dest, file), dirs_exist_ok=True)
                 else:
-                    # Otherwise, use copy for files
-                    shutil.copy(full_file_path, dest)
+                    # FIX: preserve subdirectory structure (e.g. models/foo.sql)
+                    dest_file = os.path.join(dest, file)
+                    os.makedirs(os.path.dirname(dest_file), exist_ok=True)
+                    shutil.copy(full_file_path, dest_file)
             else:
                 print(f"File {file} does not exist in the source path {src}")
                 pass
