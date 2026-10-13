@@ -69,20 +69,21 @@ import textwrap
 
 
 # ---------------------------------------------------------------------------
-# Default paths — adjust if your repo layout differs
+# Default paths — checks both Spider2/JABUTI-SQL and sibling JABUTI-SQL
 # ---------------------------------------------------------------------------
-DEFAULT_BENCHMARK = os.path.join(
-    os.path.dirname(__file__), "..", "..", "..",
-    "JABUTI-SQL", "questoes", "benchmark.json"
-)
-DEFAULT_DDL = os.path.join(
-    os.path.dirname(__file__), "..", "..", "..",
-    "JABUTI-SQL", "ddl", "ddl.sql"
-)
-DEFAULT_DOCS_DIR = os.path.join(
-    os.path.dirname(__file__), "..", "..", "..",
-    "JABUTI-SQL", "docs"
-)
+def resolve_default_path(subpath: str) -> str:
+    p1 = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "JABUTI-SQL", subpath))
+    if os.path.exists(p1):
+        return p1
+    p2 = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "JABUTI-SQL", subpath))
+    if os.path.exists(p2):
+        return p2
+    return p1
+
+
+DEFAULT_BENCHMARK = resolve_default_path(os.path.join("questoes", "benchmark.json"))
+DEFAULT_DDL = resolve_default_path(os.path.join("ddl", "ddl.sql"))
+DEFAULT_DOCS_DIR = resolve_default_path("docs")
 
 
 def convert_benchmark_to_jsonl(benchmark_path: str, output_path: str) -> list:
@@ -99,6 +100,7 @@ def convert_benchmark_to_jsonl(benchmark_path: str, output_path: str) -> list:
     - ``difficulty``: preserved for stratified metric reporting.
     - ``persona``: preserved for per-persona metric reporting.
     - ``parent_id``: links triples of questions (same query, different persona).
+      If parent_id is missing/null in benchmark.json, groups by triple (id // 3).
     - ``db``: always ``jabuti_sql`` — matches the PostgreSQL database name.
     """
     with open(benchmark_path, "r", encoding="utf-8") as f:
@@ -106,6 +108,10 @@ def convert_benchmark_to_jsonl(benchmark_path: str, output_path: str) -> list:
 
     tasks = []
     for item in items:
+        parent_id = item.get("parent_id")
+        if parent_id is None:
+            parent_id = item["id"] // 3
+
         task = {
             "instance_id": f"local_jabuti_{item['id']:03d}",
             "question": item["question"],
@@ -113,7 +119,7 @@ def convert_benchmark_to_jsonl(benchmark_path: str, output_path: str) -> list:
             "difficulty": item["difficulty"],
             "persona": item["persona"]["role"],
             "persona_description": item["persona"]["description"],
-            "parent_id": item.get("parent_id"),
+            "parent_id": parent_id,
             "db": "jabuti_sql",
             # Spider-agent-lite uses this field in agents.py to pick the
             # system prompt.  We set it here so it doesn't need to be inferred.
@@ -295,6 +301,10 @@ def main():
         help="Generate gold CSVs by running reference SQL against PostgreSQL"
     )
     parser.add_argument(
+        "--instances", default="all",
+        help="Comma-separated instance IDs or integer IDs (e.g. '0,1,2,21,22,23' or 'all')"
+    )
+    parser.add_argument(
         "--gold-dir", default="evaluation/gold",
         help="Directory for gold result CSVs"
     )
@@ -324,8 +334,20 @@ def main():
 
     # Step 3: Optionally generate gold CSVs
     if args.generate_gold:
+        gold_tasks = tasks
+        if args.instances != "all":
+            selected_ids = set()
+            for part in args.instances.split(","):
+                part = part.strip()
+                if part.isdigit():
+                    selected_ids.add(f"local_jabuti_{int(part):03d}")
+                else:
+                    selected_ids.add(part)
+            gold_tasks = [t for t in tasks if t["instance_id"] in selected_ids]
+            print(f"[setup_jabuti] Filtered to {len(gold_tasks)} tasks for gold generation: {sorted(selected_ids)}")
+
         generate_gold_results(
-            tasks,
+            gold_tasks,
             gold_dir=args.gold_dir,
             pg_host=args.pg_host,
             pg_port=args.pg_port,
@@ -336,14 +358,17 @@ def main():
 
     print("\n[setup_jabuti] Setup complete!")
     print("Next steps:")
-    print("  1. Build the Docker image (if not already done):")
-    print("     docker build -t spider_agent_postgres-image spider_agent/images/spider_agent_postgres-image/")
-    print("  2. Run the benchmark:")
-    print("     python run.py --model gpt-4o --test_path examples/jabuti.jsonl --pg_only -s jabuti_test1")
-    print("  3. Extract results:")
-    print("     python get_jabuti_submission_data.py --experiment_suffix gpt-4o-jabuti_test1")
-    print("  4. Evaluate:")
-    print("     python evaluate_jabuti.py --result_dir evaluation/predictions/gpt-4o-jabuti_test1")
+    print("  1. Start the JABUTI database:")
+    print("     cd jabuti_db && docker compose up -d && python load_dump.py")
+    print("  2. Build the agent Docker image:")
+    print("     docker build -t spider_agent_jabuti-image spider_agent/images/spider_agent_jabuti-image/")
+    print("  3. Run smoke test (questions 0,1,2):")
+    print("     python run.py --model <model> --test_path examples/jabuti.jsonl --pg_only -i 0-3 -s jabuti_smoke")
+    print("  4. Extract results:")
+    print("     python get_jabuti_submission_data.py --experiment_suffix <model>-jabuti_smoke")
+    print("  5. Evaluate:")
+    print("     python evaluate_jabuti.py --result_dir evaluation/predictions/<model>-jabuti_smoke")
+
 
 
 if __name__ == "__main__":

@@ -6,6 +6,7 @@ import os
 import random
 import sys
 import glob
+import re
 
 from tqdm import tqdm
 
@@ -83,6 +84,12 @@ def config() -> argparse.Namespace:
     # ─────────────────────────────────────────────────────────────────────────
     parser.add_argument("--pg_only", action="store_true",
                         help="Run only PostgreSQL (JABUTI-SQL) tasks")
+    parser.add_argument("--pg_host", type=str, default=os.environ.get("JABUTI_PG_HOST", "jabuti-postgres"),
+                        help="PostgreSQL host for JABUTI tasks (default: jabuti-postgres or JABUTI_PG_HOST)")
+    parser.add_argument("--pg_port", type=int, default=int(os.environ.get("JABUTI_PG_PORT", 5432)),
+                        help="PostgreSQL port (default: 5432)")
+    parser.add_argument("--docker_network", type=str, default=os.environ.get("SPIDER_DOCKER_NETWORK", "spider-net"),
+                        help="Docker network for containers (default: spider-net)")
     
     
     args = parser.parse_args()
@@ -140,7 +147,10 @@ def test(
 
         
     if args.example_name != "":
-        task_configs = [task for task in task_configs if args.example_name in task["id"]]
+        task_configs = [
+            task for task in task_configs
+            if args.example_name in task.get("instance_id", task.get("id", ""))
+        ]
     else:
         if args.example_index != "all":
             if "-" in args.example_index:
@@ -217,16 +227,25 @@ def test(
 
         os.makedirs(output_dir, exist_ok=True)
 
-        env_config["init_args"]["name"] = experiment_id +"-"+ task_config["instance_id"]
+        # Sanitize container name for Docker (only [a-zA-Z0-9][a-zA-Z0-9_.-] allowed)
+        safe_container_name = re.sub(r'[^a-zA-Z0-9_.-]', '-', f"{experiment_id}-{task_config['instance_id']}")
+        env_config["init_args"]["name"] = safe_container_name
 
         # ─── JABUTI-SQL ADAPTATION ───────────────────────────────────────
-        # For PostgreSQL tasks, use the postgres-specific Docker image which
-        # has PostgreSQL server + client pre-installed.  The existing
-        # spider_agent_postgres-image (in spider_agent/images/) already has
-        # this setup.  For all other task types, use the default image.
+        # For PostgreSQL tasks, use spider_agent_jabuti-image and attach
+        # to the shared docker_network so the container can query the
+        # standing jabuti-postgres service.
         # ─────────────────────────────────────────────────────────────────
         if task_type == 'pg':
-            env_config["image_name"] = "spider_agent_postgres-image"
+            env_config["image_name"] = "spider_agent_jabuti-image"
+            if args.docker_network:
+                env_config["init_args"]["network_mode"] = args.docker_network
+            env_config["init_args"]["environment"] = {
+                "PGHOST": args.pg_host,
+                "PGPORT": str(args.pg_port),
+                "PGUSER": "postgres",
+                "PGDATABASE": "jabuti_sql",
+            }
         else:
             env_config["image_name"] = "spider_agent-image"
 

@@ -166,3 +166,15 @@ build/
 # ─── Jupyter ─────────────────────────────────────────────────
 .ipynb_checkpoints/
 **/.ipynb_checkpoints/
+.gemini/
+
+# ─── JABUTI-SQL local clone & database dump ──────────────────
+JABUTI-SQL/
+/JABUTI-SQL/
+/JABUTI-SQL/*
+
+methods/spider-agent-lite/logs/*
+methods/spider-agent-lite/output/*
+methods/spider-agent-lite/SMOKETEST*
+temp.txt
+methods/spider-agent-lite/examples/**/dicionario_dados_Jabuti.pdf

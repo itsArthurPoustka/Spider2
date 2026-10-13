@@ -451,6 +451,8 @@ def main():
     )
     # Optional: generate gold on-the-fly
     parser.add_argument("--generate_gold", action="store_true")
+    parser.add_argument("--instances", default="all",
+                        help="Filter instances to generate gold for (e.g. '0,1,2,21,22,23' or 'all')")
     parser.add_argument("--pg_host", default="localhost")
     parser.add_argument("--pg_port", type=int, default=5432)
     parser.add_argument("--pg_user", default="postgres")
@@ -478,8 +480,19 @@ def main():
 
     # Optionally generate gold CSVs
     if args.generate_gold and tasks_list:
+        gold_tasks = tasks_list
+        if args.instances != "all":
+            selected_ids = set()
+            for part in args.instances.split(","):
+                part = part.strip()
+                if part.isdigit():
+                    selected_ids.add(f"local_jabuti_{int(part):03d}")
+                else:
+                    selected_ids.add(part)
+            gold_tasks = [t for t in tasks_list if t["instance_id"] in selected_ids]
+
         generate_gold_from_postgres(
-            tasks_list,
+            gold_tasks,
             args.gold_dir,
             pg_host=args.pg_host,
             pg_port=args.pg_port,

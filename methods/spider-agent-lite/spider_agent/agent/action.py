@@ -64,10 +64,21 @@ class Bash(Action):
 
     @classmethod
     def parse_action_from_text(cls, text: str) -> Optional[Action]:
-        matches = re.findall(r'Bash\(code=(.*?)\)', text, flags=re.DOTALL)
-        if matches:
-            code = matches[-1]
-            return cls(code=remove_quote(code))
+        # Match double-quoted code: Bash(code="...")
+        double_quoted = re.findall(r'Bash\(code="((?:\\.|[^"\\])*)"\)', text, flags=re.DOTALL)
+        if double_quoted:
+            return cls(code=remove_quote(f'"{double_quoted[-1]}"'))
+
+        # Match single-quoted code: Bash(code='...')
+        single_quoted = re.findall(r"Bash\(code='((?:\\.|[^'\\])*)'\)", text, flags=re.DOTALL)
+        if single_quoted:
+            return cls(code=remove_quote(f"'{single_quoted[-1]}'"))
+
+        # Fallback to greedy or raw match if unquoted / unconventional
+        fallback = re.findall(r'Bash\(code=(.*)\)', text, flags=re.DOTALL)
+        if fallback:
+            return cls(code=remove_quote(fallback[-1]))
+
         return None
     
     def __repr__(self) -> str:
