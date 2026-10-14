@@ -288,12 +288,13 @@ def main():
         "--docs-dir", default=DEFAULT_DOCS_DIR,
         help="Path to JABUTI-SQL docs/ directory"
     )
+    base_dir = os.path.dirname(os.path.abspath(__file__))
     parser.add_argument(
-        "--output-jsonl", default="examples/jabuti.jsonl",
+        "--output-jsonl", default=os.path.join(base_dir, "examples", "jabuti.jsonl"),
         help="Output JSONL path"
     )
     parser.add_argument(
-        "--examples-dir", default="examples",
+        "--examples-dir", default=os.path.join(base_dir, "examples"),
         help="Directory for per-task example folders"
     )
     parser.add_argument(
@@ -305,7 +306,7 @@ def main():
         help="Comma-separated instance IDs or integer IDs (e.g. '0,1,2,21,22,23' or 'all')"
     )
     parser.add_argument(
-        "--gold-dir", default="evaluation/gold",
+        "--gold-dir", default=os.path.join(base_dir, "evaluation", "gold"),
         help="Directory for gold result CSVs"
     )
     # PostgreSQL connection options (only used with --generate-gold)

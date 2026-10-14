@@ -2,7 +2,12 @@
 
 This guide provides step-by-step instructions to verify the adapted **spider-agent-lite** pipeline on the JABUTI-SQL benchmark.
 
-The smoke test runs against **Task 0 (`local_jabuti_000`)**, which queries the `instituicao` table (fully populated with all 610,321 rows in the current dump).
+The smoke test runs against the **3-persona trio for Question 1 (Tasks 0, 1, and 2 — `local_jabuti_000`, `001`, `002`)**, which queries the `instituicao` table (fully populated with all 610,321 rows in the current dump).
+
+This verifies:
+- End-to-end container networking and PostgreSQL execution.
+- All 3 user personas (*Cidadã Leiga*, *Analista de Dados em Saúde*, *Médico Gestor Hospitalar*).
+- The **Semantic Consistency** evaluation metric (whether all 3 persona variants of the same query produce the correct answer).
 
 ---
 
@@ -47,20 +52,31 @@ Run the loader script to create all tables and load the complete tables:
 python load_dump.py --host localhost --port 5432
 ```
 
-*Note:* This takes ~10–15 seconds and populates the 5 complete tables (`catmat`, `endereco`, `fabricante`, `fornecedor`, `instituicao`).
+*Note:* This takes ~14 seconds and populates the 14 core tables (`catmat`, `endereco`, `fabricante`, `fornecedor`, `instituicao`, `leitos`, `macrorregiao_de_saude`, `mantenedora`, `mantenedora_compra_produto`, `municipio`, `produto`, `regiao_de_saude`, `regiao_do_brasil`, `unidade_federativa` — ~1.22M rows total), refreshing `mv_leitos_mais_recente`.
 
 *Expected output:*
 ```
-Database loading finished in ~12 seconds!
+Database loading finished in ~14 seconds!
 Row counts in database:
   - catmat                        :     16,953 rows
   - endereco                      :    442,672 rows
   - fabricante                    :        751 rows
   - fornecedor                    :      1,083 rows
   - instituicao                   :    610,321 rows
+  - leitos                        :     86,147 rows
+  - macrorregiao_de_saude         :        121 rows
+  - mantenedora                   :      7,390 rows
+  - mantenedora_compra_produto    :     26,215 rows
+  - municipio                     :      5,570 rows
+  - mv_leitos_mais_recente        :      7,369 rows
+  - produto                       :     20,875 rows
+  - regiao_de_saude               :        439 rows
+  - regiao_do_brasil              :          5 rows
+  - unidade_federativa            :         27 rows
+  TOTAL ROWS                      :  1,225,938 rows
 ```
 
-*(Optional: To also load the ~9.36M rows of `instituicao_estoca_produto`, add `--include-partial-stock`)*
+*(Optional: To also load the 143,009,579 rows of `instituicao_estoca_produto`, add `--full`)*
 
 ---
 
@@ -81,6 +97,8 @@ python setup_jabuti.py --generate-gold --instances 0,1,2 --pg-host localhost --p
   - `evaluation/gold/local_jabuti_001.csv`
   - `evaluation/gold/local_jabuti_002.csv`
 
+*(Note: To also include tasks 21, 22, and 23 for join testing, use `--instances 0,1,2,21,22,23`)*
+
 ---
 
 ## Step 4: Build the Agent Docker Image
@@ -98,32 +116,37 @@ docker images | grep spider_agent_jabuti-image
 
 ---
 
-## Step 5: Run the Agent on Task 0
+## Step 5: Run the Agent on the Smoke Test Tasks
 
-Run the agent on instance 0 (`local_jabuti_000`):
+Run the agent on tasks 0, 1, and 2:
 
 ```bash
 python run.py \
     --model gpt-4o \
     --test_path examples/jabuti.jsonl \
     --pg_only \
-    -i 0-1 \
+    -i 0-3 \
     -s smoke_test1
 ```
 
-*(Replace `gpt-4o` with your model identifier, e.g. `gpt-4o-mini`, `deepseek-chat`, etc.)*
+*(Replace `gpt-4o` with your model identifier, e.g. `gpt-4o-mini`, `gpt-qwen-coder`, etc.)*
+
+> **Understanding `-i` task selection:**
+> - `-i 0-3` is a Python slice `[0:3]`, running indices **0, 1, and 2** (`local_jabuti_000`, `001`, `002`).
+> - You can also pass comma-separated indices, such as `-i 0,1,2` or `-i 0,1,2,21,22,23`.
+> - To run a single task: `-i 0-1` or `--example_name local_jabuti_000`.
 
 What happens during execution:
-1. `run.py` launches a container from `spider_agent_jabuti-image` attached to `spider-net`.
+1. `run.py` launches a container for each task from `spider_agent_jabuti-image` attached to `spider-net`.
 2. The agent inspects `ddl.sql` and uses `psql -c "..."` to query `jabuti_sql` on `jabuti-postgres`.
 3. The agent saves its final answer to `result.csv` in `/workspace` and terminates.
-4. Output trajectory and files are saved to `output/gpt-4o-smoke_test1/local_jabuti_000/`.
+4. Output trajectories and results are saved to `output/gpt-4o-smoke_test1/local_jabuti_XXX/`.
 
 ---
 
 ## Step 6: Extract the Submission Results
 
-Extract the agent's prediction file:
+Extract the agent's prediction files:
 
 ```bash
 python get_jabuti_submission_data.py \
@@ -133,17 +156,20 @@ python get_jabuti_submission_data.py \
 
 *Expected output:*
 ```
-Processed 1 JABUTI tasks → evaluation/predictions/gpt-4o-smoke_test1
+Processed 3 JABUTI tasks → evaluation/predictions/gpt-4o-smoke_test1
 Metadata saved to evaluation/predictions/gpt-4o-smoke_test1/submission_metadata.jsonl
 ```
 
-Verify that `evaluation/predictions/gpt-4o-smoke_test1/local_jabuti_000.csv` was created.
+Verify that predictions were extracted:
+- `evaluation/predictions/gpt-4o-smoke_test1/local_jabuti_000.csv`
+- `evaluation/predictions/gpt-4o-smoke_test1/local_jabuti_001.csv`
+- `evaluation/predictions/gpt-4o-smoke_test1/local_jabuti_002.csv`
 
 ---
 
 ## Step 7: Evaluate Against Ground Truth
 
-Evaluate the predicted CSV against the gold result:
+Evaluate the predicted CSVs against the gold results:
 
 ```bash
 python evaluate_jabuti.py \
@@ -154,28 +180,66 @@ python evaluate_jabuti.py \
 
 *Expected output:*
 ```
-Found 1 predictions to evaluate
+Found 3 predictions to evaluate
   ✅ local_jabuti_000
+  ✅ local_jabuti_001
+  ✅ local_jabuti_002
 
 ======================================================================
 JABUTI-SQL EVALUATION RESULTS
 ======================================================================
 
-📊 Overall Accuracy: 1.0000 (1/1)
+📊 Overall Accuracy: 1.0000 (3/3)
 
 📈 Per Difficulty:
   Difficulty     Accuracy    Correct      Total
   ──────────── ────────── ────────── ──────────
-  simple           1.0000          1          1
+  simple           1.0000          3          3
 
 👤 Per Persona:
   Persona                               Accuracy    Correct      Total
   ─────────────────────────────────── ────────── ────────── ──────────
   Cidadã Leiga                            1.0000          1          1
+  Analista de Dados em Saúde              1.0000          1          1
+  Médico Gestor Hospitalar                1.0000          1          1
+
+🔗 Semantic Consistency (parent groups):
+  Total groups:           1
+  Fully correct (all 3):  1 (1.0000)
+  Partially correct (≥1): 1 (1.0000)
 
 ======================================================================
 📄 Full report saved to: evaluation/predictions/gpt-4o-smoke_test1/evaluation_report.json
 ```
+
+---
+
+## Expanding the Smoke Test to 6 Tasks (Adding Multi-Table Joins)
+
+If you want a more rigorous smoke test that tests SQL `JOIN` capabilities across multiple tables, you can include **Tasks 21, 22, and 23 (`local_jabuti_021`, `022`, `023`)**.
+
+These tasks join `instituicao` (610K rows) with `endereco` (442K rows) to filter institutions by address. Both tables are 100% complete in the database.
+
+1. **Generate gold for all 6 tasks:**
+   ```bash
+   python setup_jabuti.py --generate-gold --instances 0,1,2,21,22,23 --pg-host localhost --pg-port 5432
+   ```
+
+2. **Run the 6 tasks:**
+   ```bash
+   python run.py \
+       --model gpt-4o \
+       --test_path examples/jabuti.jsonl \
+       --pg_only \
+       -i 0,1,2,21,22,23 \
+       -s smoke_6tasks
+   ```
+
+3. **Extract & evaluate:**
+   ```bash
+   python get_jabuti_submission_data.py --experiment_suffix gpt-4o-smoke_6tasks --results_folder_name evaluation/predictions/gpt-4o-smoke_6tasks
+   python evaluate_jabuti.py --result_dir evaluation/predictions/gpt-4o-smoke_6tasks --gold_dir evaluation/gold --jabuti_jsonl examples/jabuti.jsonl
+   ```
 
 ---
 
