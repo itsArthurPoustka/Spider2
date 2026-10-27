@@ -178,3 +178,15 @@ methods/spider-agent-lite/output/*
 methods/spider-agent-lite/SMOKETEST*
 temp.txt
 methods/spider-agent-lite/examples/**/dicionario_dados_Jabuti.pdf
+
+methods/spider-agent-jabuti/logs/*
+methods/spider-agent-jabuti/output/*
+!methods/spider-agent-jabuti/logs/.gitkeep
+!methods/spider-agent-jabuti/output/.gitkeep
+methods/spider-agent-jabuti/examples/**/dicionario_dados_Jabuti.pdf
+
+# Evaluation predictions and scratch
+methods/spider-agent-lite/evaluation/predictions/
+methods/spider-agent-jabuti/evaluation/predictions/
+methods/spider-agent-lite/scratch/
+methods/spider-agent-jabuti/scratch/
