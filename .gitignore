@@ -190,3 +190,7 @@ methods/spider-agent-lite/evaluation/predictions/
 methods/spider-agent-jabuti/evaluation/predictions/
 methods/spider-agent-lite/scratch/
 methods/spider-agent-jabuti/scratch/
+
+# ─── Local external reference repositories ───────────────────
+akoflow/
+/akoflow

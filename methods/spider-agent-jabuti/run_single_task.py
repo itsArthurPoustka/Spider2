@@ -49,6 +49,11 @@ if SCRIPT_DIR not in sys.path:
 
 from spider_agent.envs.spider_agent import Spider_Agent_Env
 from spider_agent.agent.agents import PromptAgent
+from spider_agent.agent.provenance import (
+    build_w3c_prov_record,
+    calculate_file_hash,
+    detect_export_syntax,
+)
 
 
 # =============================================================================
@@ -98,11 +103,7 @@ def setup_logging(output_dir: Optional[str] = None) -> None:
 # =============================================================================
 def calculate_sha256(filepath: str) -> str:
     """Computes SHA256 checksum of a file."""
-    h = hashlib.sha256()
-    with open(filepath, "rb") as f:
-        while chunk := f.read(65536):
-            h.update(chunk)
-    return h.hexdigest()
+    return calculate_file_hash(filepath)
 
 
 def sanitize_docker_name(name: str) -> str:
@@ -128,147 +129,44 @@ def generate_provenance_record(
     start_time_iso: str,
     end_time_iso: str,
     has_result_csv: bool,
+    t_llm_ms: float = 0.0,
+    t_db_ms: float = 0.0,
+    tokens_prompt: int = 0,
+    tokens_completion: int = 0,
+    tokens_total: int = 0,
+    export_syntax: str = "NONE",
     db_name: str = "jabuti_sql",
     pg_host: str = "jabuti-postgres",
     pg_port: int = 5432,
 ) -> Dict[str, Any]:
     """
-    Builds a W3C PROV-JSON standard compliant provenance graph.
-    Captures entities, activities, agents, and their derivation relations.
+    Builds a W3C PROV-JSON standard compliant provenance graph via provenance.build_w3c_prov_record.
     """
-    task_id = task_config.get("instance_id", "unknown_task")
-    instruction_text = task_config.get("question", task_config.get("instruction", ""))
-    prompt_hash = hashlib.sha256(instruction_text.encode("utf-8")).hexdigest()
-
-    csv_path = os.path.join(output_dir, "result.csv")
-    csv_hash = None
-    csv_row_count = 0
-    if os.path.exists(csv_path):
-        try:
-            csv_hash = calculate_sha256(csv_path)
-            with open(csv_path, "r", encoding="utf-8", errors="ignore") as f:
-                reader = csv.reader(f)
-                rows = list(reader)
-                csv_row_count = max(0, len(rows) - 1) if len(rows) > 0 else 0
-        except Exception as e:
-            logger.warning("Error reading result.csv for provenance: %s", e)
-
-    safe_model = sanitize_docker_name(model.split("/")[-1])
-
-    prov_doc = {
-        "prefix": {
-            "prov": "http://www.w3.org/ns/prov#",
-            "jabuti": "http://jabuti-sql.org/provenance/",
-            "xsd": "http://www.w3.org/2001/XMLSchema#",
-        },
-        "entity": {
-            f"jabuti:task:{task_id}": {
-                "prov:type": "jabuti:TaskSpecification",
-                "jabuti:instance_id": task_id,
-                "jabuti:parent_group": str(task_config.get("parent_id", "")),
-                "jabuti:persona": task_config.get("persona", ""),
-                "jabuti:difficulty": task_config.get("difficulty", ""),
-                "jabuti:prompt_hash": prompt_hash,
-                "jabuti:question": instruction_text,
-            },
-            f"jabuti:model:{safe_model}": {
-                "prov:type": "jabuti:ModelVersion",
-                "jabuti:model_id": model,
-                "jabuti:provider": provider,
-                "jabuti:temperature": temperature,
-                "jabuti:top_p": top_p,
-            },
-            f"jabuti:db:{db_name}": {
-                "prov:type": "jabuti:DatabaseState",
-                "jabuti:database_name": db_name,
-                "jabuti:host": pg_host,
-                "jabuti:port": pg_port,
-            },
-            f"jabuti:container:{container_name}": {
-                "prov:type": "jabuti:DockerContainer",
-                "jabuti:container_name": container_name,
-                "jabuti:image_name": image_name,
-            },
-            f"jabuti:prediction:{safe_model}:{task_id}": {
-                "prov:type": "jabuti:PredictionOutput",
-                "jabuti:file_sha256": csv_hash or "none",
-                "jabuti:row_count": csv_row_count,
-                "jabuti:has_result": has_result_csv,
-            },
-            f"jabuti:metrics:{safe_model}:{task_id}": {
-                "prov:type": "jabuti:StepMetrics",
-                "jabuti:step_count": step_count,
-                "jabuti:t_total_ms": round(total_duration_ms, 2),
-                "jabuti:exit_code": exit_code,
-            },
-            f"jabuti:trajectory:{safe_model}:{task_id}": {
-                "prov:type": "jabuti:TrajectoryJSON",
-                "jabuti:step_count": step_count,
-            },
-        },
-        "activity": {
-            f"jabuti:activity:{task_id}": {
-                "prov:type": "jabuti:JABUTI_Task_Execution",
-                "prov:startTime": start_time_iso,
-                "prov:endTime": end_time_iso,
-            }
-        },
-        "agent": {
-            f"jabuti:agent:llm:{safe_model}": {
-                "prov:type": "prov:SoftwareAgent",
-                "jabuti:model": model,
-            },
-            "jabuti:agent:postgres_engine": {
-                "prov:type": "prov:SoftwareAgent",
-                "jabuti:engine": "PostgreSQL 16",
-            },
-        },
-        "wasAssociatedWith": {
-            "_:waw1": {
-                "prov:activity": f"jabuti:activity:{task_id}",
-                "prov:agent": f"jabuti:agent:llm:{safe_model}",
-            },
-            "_:waw2": {
-                "prov:activity": f"jabuti:activity:{task_id}",
-                "prov:agent": "jabuti:agent:postgres_engine",
-            },
-        },
-        "used": {
-            "_:u1": {
-                "prov:activity": f"jabuti:activity:{task_id}",
-                "prov:entity": f"jabuti:task:{task_id}",
-            },
-            "_:u2": {
-                "prov:activity": f"jabuti:activity:{task_id}",
-                "prov:entity": f"jabuti:db:{db_name}",
-            },
-            "_:u3": {
-                "prov:activity": f"jabuti:activity:{task_id}",
-                "prov:entity": f"jabuti:container:{container_name}",
-            },
-        },
-        "wasGeneratedBy": {
-            "_:wgb1": {
-                "prov:entity": f"jabuti:prediction:{safe_model}:{task_id}",
-                "prov:activity": f"jabuti:activity:{task_id}",
-            },
-            "_:wgb2": {
-                "prov:entity": f"jabuti:metrics:{safe_model}:{task_id}",
-                "prov:activity": f"jabuti:activity:{task_id}",
-            },
-            "_:wgb3": {
-                "prov:entity": f"jabuti:trajectory:{safe_model}:{task_id}",
-                "prov:activity": f"jabuti:activity:{task_id}",
-            },
-        },
-        "wasDerivedFrom": {
-            "_:wdf1": {
-                "prov:generatedEntity": f"jabuti:prediction:{safe_model}:{task_id}",
-                "prov:usedEntity": f"jabuti:task:{task_id}",
-            }
-        },
-    }
-    return prov_doc
+    return build_w3c_prov_record(
+        task_config=task_config,
+        model=model,
+        provider=provider,
+        temperature=temperature,
+        top_p=top_p,
+        output_dir=output_dir,
+        container_name=container_name,
+        image_name=image_name,
+        step_count=step_count,
+        total_duration_ms=total_duration_ms,
+        t_llm_ms=t_llm_ms,
+        t_db_ms=t_db_ms,
+        tokens_prompt=tokens_prompt,
+        tokens_completion=tokens_completion,
+        tokens_total=tokens_total,
+        exit_code=exit_code,
+        start_time_iso=start_time_iso,
+        end_time_iso=end_time_iso,
+        has_result_csv=has_result_csv,
+        export_syntax=export_syntax,
+        db_name=db_name,
+        pg_host=pg_host,
+        pg_port=pg_port,
+    )
 
 
 # =============================================================================
@@ -659,6 +557,8 @@ def execute_single_task(args: argparse.Namespace) -> int:
                 indent=2,
             )
 
+        end_time = time.time()
+        total_duration_ms = (end_time - start_time) * 1000.0
         end_time_iso = datetime.datetime.now(datetime.timezone.utc).isoformat()
         metrics = {
             "instance_id": args.task_id,
@@ -669,7 +569,13 @@ def execute_single_task(args: argparse.Namespace) -> int:
             "finished": True,
             "done": True,
             "exit_code": 0,
-            "t_total_ms": 10.0,
+            "t_total_ms": round(total_duration_ms, 2),
+            "t_llm_ms": 0.0,
+            "t_db_ms": 0.0,
+            "tokens_prompt": 0,
+            "tokens_completion": 0,
+            "tokens_total": 0,
+            "export_syntax": "NONE",
             "result_output": "result.csv",
             "has_result_csv": True,
             "csv_row_count": 1,
@@ -691,7 +597,13 @@ def execute_single_task(args: argparse.Namespace) -> int:
             container_name=container_name,
             image_name=image_name,
             step_count=1,
-            total_duration_ms=10.0,
+            total_duration_ms=total_duration_ms,
+            t_llm_ms=0.0,
+            t_db_ms=0.0,
+            tokens_prompt=0,
+            tokens_completion=0,
+            tokens_total=0,
+            export_syntax="NONE",
             exit_code=0,
             start_time_iso=start_time_iso,
             end_time_iso=end_time_iso,
@@ -754,6 +666,10 @@ def execute_single_task(args: argparse.Namespace) -> int:
         error_message = str(e)
         done = False
         result_output = f"EXCEPTION: {e}"
+        try:
+            trajectory = agent.get_trajectory()
+        except Exception:
+            pass
 
     finally:
         # Guarantee container destruction
@@ -878,6 +794,17 @@ def execute_single_task(args: argparse.Namespace) -> int:
         except Exception:
             pass
 
+    t_llm_ms = round(float(getattr(agent, "t_llm_ms", 0.0)), 2)
+    t_db_ms = round(float(getattr(agent, "t_db_ms", 0.0)), 2)
+    tokens_prompt = int(getattr(agent, "tokens_prompt", 0) or 0)
+    tokens_completion = int(getattr(agent, "tokens_completion", 0) or 0)
+    tokens_total = int(getattr(agent, "tokens_total", 0) or 0)
+    export_syntax = getattr(agent, "export_syntax", "NONE")
+    if not export_syntax or export_syntax == "NONE":
+        export_syntax = detect_export_syntax(
+            getattr(agent, "actions", []), result_output or "result.csv"
+        )
+
     metrics = {
         "instance_id": args.task_id,
         "model": args.model,
@@ -888,6 +815,12 @@ def execute_single_task(args: argparse.Namespace) -> int:
         "done": done,
         "exit_code": exit_code,
         "t_total_ms": round(total_duration_ms, 2),
+        "t_llm_ms": t_llm_ms,
+        "t_db_ms": t_db_ms,
+        "tokens_prompt": tokens_prompt,
+        "tokens_completion": tokens_completion,
+        "tokens_total": tokens_total,
+        "export_syntax": export_syntax,
         "result_output": result_output,
         "has_result_csv": has_result_csv,
         "csv_row_count": csv_row_count,
@@ -911,6 +844,12 @@ def execute_single_task(args: argparse.Namespace) -> int:
         image_name=image_name,
         step_count=step_count,
         total_duration_ms=total_duration_ms,
+        t_llm_ms=t_llm_ms,
+        t_db_ms=t_db_ms,
+        tokens_prompt=tokens_prompt,
+        tokens_completion=tokens_completion,
+        tokens_total=tokens_total,
+        export_syntax=export_syntax,
         exit_code=exit_code,
         start_time_iso=start_time_iso,
         end_time_iso=end_time_iso,

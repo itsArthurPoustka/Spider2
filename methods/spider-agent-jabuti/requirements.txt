@@ -1,0 +1,10 @@
+docker
+psycopg2-binary
+pandas
+requests
+tqdm
+gymnasium
+tiktoken
+tabulate
+duckdb
+tenacity
