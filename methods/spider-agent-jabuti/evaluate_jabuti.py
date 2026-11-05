@@ -245,8 +245,12 @@ def evaluate_single_instance(
         "gold_rows": 0,
     }
 
-    # Load predicted CSV
+    # Load predicted CSV (supports both flat <pred_dir>/<instance_id>.csv
+    # and nested per-task <pred_dir>/<instance_id>/result.csv from AkôFlow / run_single_task.py)
     pred_path = Path(pred_dir) / f"{instance_id}.csv"
+    nested_pred_path = Path(pred_dir) / instance_id / "result.csv"
+    if not pred_path.exists() and nested_pred_path.exists():
+        pred_path = nested_pred_path
     if not pred_path.exists():
         result["error_info"] = f"Prediction file not found: {pred_path}"
         return result
@@ -501,16 +505,28 @@ def main():
             pg_dbname=args.pg_dbname,
         )
 
-    # Discover predicted task IDs
+    # Discover predicted task IDs (supports both flat <result_dir>/local_jabuti_XXX.csv
+    # and nested per-task <result_dir>/local_jabuti_XXX/result.csv directories)
     if not os.path.exists(args.result_dir):
         print(f"ERROR: Result directory not found: {args.result_dir}")
         sys.exit(1)
 
-    pred_ids = sorted(
-        Path(f).stem
-        for f in os.listdir(args.result_dir)
-        if f.endswith(".csv") and f.startswith("local_jabuti_")
-    )
+    discovered_ids = set()
+    for entry in os.listdir(args.result_dir):
+        if entry.endswith(".csv") and entry.startswith("local_jabuti_"):
+            discovered_ids.add(Path(entry).stem)
+        elif entry.startswith("local_jabuti_") and os.path.isdir(
+            os.path.join(args.result_dir, entry)
+        ):
+            task_subdir = os.path.join(args.result_dir, entry)
+            if (
+                os.path.isfile(os.path.join(task_subdir, "result.csv"))
+                or os.path.isfile(os.path.join(task_subdir, "metrics.json"))
+                or os.path.isfile(os.path.join(task_subdir, "spider", "result.json"))
+            ):
+                discovered_ids.add(entry)
+
+    pred_ids = sorted(discovered_ids)
 
     if not pred_ids:
         print("No JABUTI prediction files found in result_dir")

@@ -192,5 +192,7 @@ methods/spider-agent-lite/scratch/
 methods/spider-agent-jabuti/scratch/
 
 # ─── Local external reference repositories ───────────────────
-akoflow/
+/akoflow/
 /akoflow
+!methods/spider-agent-jabuti/akoflow/
+!methods/spider-agent-jabuti/akoflow/**

@@ -37,6 +37,7 @@ import os
 import re
 import shutil
 import sys
+import tempfile
 import time
 import uuid
 from pathlib import Path
@@ -639,13 +640,22 @@ def execute_single_task(args: argparse.Namespace) -> int:
     result_files = {}
     error_message = None
 
+    # Docker Engine rejects bind-mount source paths containing ':' (e.g. model tags
+    # like 'qwen2.5-coder:32b' in '/shared/output/qwen2.5-coder:32b/local_jabuti_000').
+    # Use a colon-free temporary staging mount directory when ':' is present in output_dir.
+    staging_mnt_dir: Optional[str] = None
+    effective_mnt_dir = output_dir
+    if ":" in output_dir:
+        staging_mnt_dir = tempfile.mkdtemp(prefix=f"jabuti-mnt-{safe_instance_id}-")
+        effective_mnt_dir = staging_mnt_dir
+
     try:
         logger.info("Constructing Docker sandbox environment: %s", container_name)
         env = Spider_Agent_Env(
             env_config=env_config,
             task_config=task_config,
             cache_dir=args.cache_dir,
-            mnt_dir=output_dir,
+            mnt_dir=effective_mnt_dir,
         )
 
         agent.set_env_and_task(env)
@@ -672,6 +682,22 @@ def execute_single_task(args: argparse.Namespace) -> int:
             pass
 
     finally:
+        # Sync any files produced in staging_mnt_dir back to output_dir
+        if staging_mnt_dir and os.path.isdir(staging_mnt_dir):
+            try:
+                shutil.copytree(staging_mnt_dir, output_dir, dirs_exist_ok=True)
+                if isinstance(result_files, dict) and result_files.get("added_files"):
+                    result_files["added_files"] = [
+                        os.path.join(output_dir, os.path.relpath(p, staging_mnt_dir))
+                        if p.startswith(staging_mnt_dir)
+                        else p
+                        for p in result_files["added_files"]
+                    ]
+            except Exception as e:
+                logger.warning("Failed to sync staging mount dir to output_dir: %s", e)
+            finally:
+                shutil.rmtree(staging_mnt_dir, ignore_errors=True)
+
         # Guarantee container destruction
         if env is not None:
             try:

@@ -11,6 +11,8 @@ An autonomous agent framework adapted from Spider 2.0 to evaluate LLMs on the **
 ### Key Capabilities
 - **PostgreSQL Native Support**: Runs queries directly against a standing PostgreSQL container (`jabuti-postgres`) loaded with the full schema and data.
 - **Dockerized Agent Execution**: Each task runs inside an isolated container (`spider_agent_jabuti-image`) connected via a shared bridge network (`spider-net`).
+- **Atomic Single-Task & AkôFlow DAG Orchestration**: Supports both sequential batch runs (`run.py`) and atomic container-isolated single-task runs (`run_single_task.py`) orchestrated as parallel fan-out/fan-in workflows via **AkôFlow** (`generate_akoflow_workflow.py`).
+- **W3C PROV-DM Scientific Provenance & Telemetry**: Automatically records decomposed latencies (`t_llm_ms`, `t_db_ms`, `t_total_ms`), token usage, SQL export tool adherence (`COPY_TO_STDOUT` vs. `PSQL_PLAIN`), and W3C PROV-JSON lineage graphs (`task_provenance.json`).
 - **Large-Table Awareness**: Tailored system prompts and materialized views to handle high-cardinality tables safely (such as `instituicao_estoca_produto` with 143M+ rows).
 - **Stratified & Semantic Consistency Evaluation**: Measures overall execution accuracy, per-difficulty accuracy, per-persona accuracy, and semantic consistency (whether an agent answers all 3 persona phrasings of the same underlying inquiry).
 
@@ -49,9 +51,16 @@ methods/spider-agent-jabuti/
 ├── SMOKE_TEST_INSTRUCTIONS.md         # Detailed smoke test walkthrough
 ├── requirements.txt                   # Host Python environment dependencies
 ├── run.py                             # Benchmark runner and container orchestrator
+├── run_single_task.py                 # Atomic single-task runner with W3C PROV & metrics
+├── generate_akoflow_workflow.py       # AkôFlow parallel DAG YAML generator
 ├── setup_jabuti.py                    # Benchmark setup and gold standard generation
 ├── get_jabuti_submission_data.py      # Result extractor for predictions
 ├── evaluate_jabuti.py                 # Ground truth evaluation and stratified scoring
+├── test_provenance.py                 # Unit tests for provenance, telemetry & single-task runner
+├── test_generate_akoflow_workflow.py  # Unit tests for AkôFlow workflow generator
+├── akoflow/                           # Generated AkôFlow workflow specifications
+│   ├── workflow_jabuti.yaml           # Full 69-task parallel DAG specification
+│   └── workflow_smoke.yaml            # 3-task smoke test DAG specification
 ├── jabuti_db/                         # Database infrastructure
 │   ├── docker-compose.yml             # Standing PostgreSQL service
 │   └── load_dump.py                   # Schema and dump loader
@@ -167,19 +176,83 @@ python run.py \
 
 ---
 
+### Atomic Single-Task Execution (`run_single_task.py`)
+
+For distributed orchestration (such as **AkôFlow**) or isolated task debugging, `run_single_task.py` runs a single task instance inside a uniquely named Docker sandbox (`spider-jabuti-<model>-<task_id>-<uuid>`) and emits standardized telemetry and W3C PROV artifacts:
+
+```bash
+python run_single_task.py \
+    --task_id local_jabuti_000 \
+    --test_path ./examples/jabuti.jsonl \
+    --model qwen2.5-coder:32b \
+    --provider ollama \
+    --base_url http://localhost:11434/v1 \
+    --output_dir output/single_run/local_jabuti_000 \
+    --max_steps 20
+```
+
+#### POSIX Exit Codes
+- `0`: Task completed normally (`result.csv` generated).
+- `1`: Task aborted due to exception, repeated identical action loop, or missing `result.csv`.
+- `2`: Task timed out (exceeded `--max_steps`).
+
+#### Per-Task Output Artifact Contract
+Every task execution writes the following files into `--output_dir`:
+- `result.csv`: Normalized RFC 4180 CSV prediction table for evaluation.
+- `trajectory.json`: Full micro-step ReAct trace (thoughts, actions, observations).
+- `metrics.json`: Decomposed wall-clock latencies (`t_total_ms`, `t_llm_ms`, `t_db_ms`), token usage (`tokens_prompt`, `tokens_completion`, `tokens_total`), `step_count`, `export_syntax` (`COPY_TO_STDOUT`, `PSQL_PLAIN`, or `NONE`), and `exit_code`.
+- `task_provenance.json`: W3C PROV-JSON document linking `TaskSpec`, `DatabaseState`, `ModelVersion`, `DockerContainer`, `PredictionOutput`, `Metrics`, and `TrajectoryJSON` entities across `LLMBackend`, `PostgreSQLServer`, and `AkôFlowEngine` agents.
+- `spider/result.json`: Backwards-compatible Spider2 trajectory/result file.
+- `task.log`: Detailed `DEBUG`-level log for the task execution.
+
+---
+
+### AkôFlow Workflow Generation (`generate_akoflow_workflow.py`)
+
+Generate an AkôFlow workflow YAML specification modeling the benchmark sweep as a parallel fan-out/fan-in DAG (`preflight-check` → `task-local_jabuti_000`..`N` → `evaluation`):
+
+```bash
+# Generate 3-instance smoke test workflow
+python generate_akoflow_workflow.py \
+    --model qwen2.5-coder:32b \
+    --instances 0,1,2 \
+    --output_yaml akoflow/workflow_smoke.yaml
+
+# Generate full 69-instance benchmark workflow
+python generate_akoflow_workflow.py \
+    --model qwen2.5-coder:32b \
+    --instances all \
+    --output_yaml akoflow/workflow_jabuti.yaml
+```
+
+> **Generator CLI Options:**
+> - `--model`: Target LLM model name (default: `qwen2.5-coder:32b`).
+> - `--instances`: Subset filter (`all`, comma-separated indices like `0,1,2`, ranges like `0-5`, or task IDs like `local_jabuti_000`).
+> - `--output_yaml`: Output YAML path (default: `akoflow/workflow_jabuti.yaml`).
+> - `--namespace`: AkôFlow namespace (default: `escience-jabuti`).
+> - `--image`: Base runner image (default: `spider-agent-runner:latest`).
+> - `--cpu_limit` / `--memory_limit`: Per-activity resource limits (defaults: `"1"` and `"2Gi"`).
+
+---
+
 ## 📊 Evaluation & Metrics
 
-### 1. Extract Prediction CSVs
-After running `run.py`, collect and normalize the output predictions:
+### Option A: Evaluate `run_single_task.py` / AkôFlow Output Directory Directly
+`evaluate_jabuti.py` natively discovers nested `<result_dir>/<instance_id>/result.csv` task directories produced by `run_single_task.py`:
+```bash
+python evaluate_jabuti.py \
+    --result_dir output/single_run \
+    --gold_dir evaluation/gold \
+    --jabuti_jsonl examples/jabuti.jsonl
+```
+
+### Option B: Extract & Evaluate Batch `run.py` Outputs
+After running `run.py`, extract flat prediction CSVs and evaluate:
 ```bash
 python get_jabuti_submission_data.py \
     --experiment_suffix gpt-qwen-coder-smoke_trio \
     --results_folder_name evaluation/predictions/gpt-qwen-coder-smoke_trio
-```
 
-### 2. Run Evaluation
-Compare predictions against ground truth gold CSVs:
-```bash
 python evaluate_jabuti.py \
     --result_dir evaluation/predictions/gpt-qwen-coder-smoke_trio \
     --gold_dir evaluation/gold \
@@ -202,9 +275,67 @@ python evaluate_jabuti.py \
 | Variable | Default | Description |
 |---|---|---|
 | `OPENAI_API_KEY` | `ollama` | API key or token for LLM API |
+| `OPENAI_BASE_URL` / `LLM_BASE_URL` | `http://localhost:11434/v1` | OpenAI-compatible base URL for LLM inference |
+| `LLM_PROVIDER` | `ollama` | Default LLM provider (`ollama`, `openai`, `azure`, `deepseek`, `groq`) |
+| `LLM_WEIGHTS_DIGEST` | *(auto-detected)* | Optional override for model weights SHA256 digest in W3C PROV |
 | `JABUTI_PG_HOST` | `jabuti-postgres` | PostgreSQL hostname inside Docker network |
 | `JABUTI_PG_PORT` | `5432` | PostgreSQL port |
+| `JABUTI_DB_DUMP_SHA256` | *(auto-detected)* | Optional override for PostgreSQL dump SHA256 digest in W3C PROV |
 | `SPIDER_DOCKER_NETWORK` | `spider-net` | Bridge network connecting agent and database |
+
+---
+
+## 🐛 Debugging & Troubleshooting
+
+### 1. Run Unit & Integration Tests
+Verify W3C PROV generation, latency/token instrumentation, export syntax classification, single-task failure handling, and AkôFlow YAML generation without needing a live LLM or database:
+```bash
+python3 test_provenance.py -v
+python3 test_generate_akoflow_workflow.py -v
+```
+
+### 2. Dry-Run Validation (`--dry_run`)
+Test CLI parsing, task resolution, container naming, and output artifact creation (`result.csv`, `trajectory.json`, `metrics.json`, `task_provenance.json`) without launching a Docker container or calling an LLM:
+```bash
+python3 run_single_task.py \
+    --task_id local_jabuti_000 \
+    --model qwen2.5-coder:32b \
+    --output_dir output/dry_run/local_jabuti_000 \
+    --dry_run
+```
+
+### 3. Inspecting Task Logs, Trajectories & Provenance
+When debugging a failed or low-accuracy task in `<output_dir>`:
+- **Execution Log**: Check `<output_dir>/task.log` for full `DEBUG` logs (including raw LLM responses and Docker container setup).
+- **Step-by-Step Trajectory**: Inspect `<output_dir>/trajectory.json` to see each ReAct turn (`thought`, `action`, `observation`).
+- **Decomposed Latencies & Exit Status**: Inspect `<output_dir>/metrics.json` to compare LLM inference wait time (`t_llm_ms`) vs. database execution time (`t_db_ms`), check `export_syntax` (`COPY_TO_STDOUT` vs. `PSQL_PLAIN`), and verify `exit_code`.
+- **W3C PROV Graph**: Inspect `<output_dir>/task_provenance.json` to verify `jabuti:status` (`SUCCESS`, `TIMEOUT`, `FAILURE`), `jabuti:is_partial`, and entity SHA256 checksums.
+
+### 4. Re-running or Overwriting Tasks
+By default, `run_single_task.py` skips tasks that already have a `result.csv` or `spider/result.json` in `--output_dir`:
+- Pass `--overwriting` to force a fresh run and clean previous artifacts in `--output_dir`.
+- Pass `--retry_failed` to re-run only tasks whose previous execution did not finish cleanly.
+
+### 5. Common Infrastructure Checks
+- **PostgreSQL Connectivity**:
+  ```bash
+  docker exec -it jabuti-postgres pg_isready -U postgres -d jabuti_sql
+  ```
+- **Docker Network Inspection**:
+  Ensure `jabuti-postgres` is attached to `spider-net`:
+  ```bash
+  docker network inspect spider-net
+  ```
+- **Ollama / LLM Endpoint Availability**:
+  ```bash
+  curl -sf http://localhost:11434/v1/models | python3 -m json.tool
+  ```
+  *(Note: When running agent containers on Linux that connect to Ollama on the host, ensure Ollama binds to `0.0.0.0:11434` or pass `--base_url http://host.docker.internal:11434/v1`).*
+- **Orphaned Sandbox Containers**:
+  `run_single_task.py` destroys its container in a `finally` block and traps `SIGINT`/`SIGTERM`, but if a process was killed with `SIGKILL`, clean up leftover containers with:
+  ```bash
+  docker ps -a --filter "name=spider-jabuti-" -q | xargs -r docker rm -f
+  ```
 
 ---
 

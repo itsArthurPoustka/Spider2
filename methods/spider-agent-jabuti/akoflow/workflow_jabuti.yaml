@@ -1,0 +1,428 @@
+name: jabuti-sql-benchmark-qwen2.5-coder-32b
+spec:
+  namespace: escience-jabuti
+  image: "spider-agent-runner:latest"
+  activities:
+    - name: preflight-check
+      cpuLimit: "1"
+      memoryLimit: "2Gi"
+      run: "pg_isready -h ${JABUTI_PG_HOST:-jabuti-postgres} -p ${JABUTI_PG_PORT:-5432} -U postgres -d jabuti_sql && curl -sf ${LLM_BASE_URL:-http://localhost:11434/v1}/models > /dev/null"
+    - name: task-local_jabuti_000
+      dependsOn: [preflight-check]
+      cpuLimit: "1"
+      memoryLimit: "2Gi"
+      run: "python run_single_task.py --task_id local_jabuti_000 --model qwen2.5-coder:32b --output_dir /shared/output/qwen2.5-coder:32b/local_jabuti_000"
+    - name: task-local_jabuti_001
+      dependsOn: [preflight-check]
+      cpuLimit: "1"
+      memoryLimit: "2Gi"
+      run: "python run_single_task.py --task_id local_jabuti_001 --model qwen2.5-coder:32b --output_dir /shared/output/qwen2.5-coder:32b/local_jabuti_001"
+    - name: task-local_jabuti_002
+      dependsOn: [preflight-check]
+      cpuLimit: "1"
+      memoryLimit: "2Gi"
+      run: "python run_single_task.py --task_id local_jabuti_002 --model qwen2.5-coder:32b --output_dir /shared/output/qwen2.5-coder:32b/local_jabuti_002"
+    - name: task-local_jabuti_003
+      dependsOn: [preflight-check]
+      cpuLimit: "1"
+      memoryLimit: "2Gi"
+      run: "python run_single_task.py --task_id local_jabuti_003 --model qwen2.5-coder:32b --output_dir /shared/output/qwen2.5-coder:32b/local_jabuti_003"
+    - name: task-local_jabuti_004
+      dependsOn: [preflight-check]
+      cpuLimit: "1"
+      memoryLimit: "2Gi"
+      run: "python run_single_task.py --task_id local_jabuti_004 --model qwen2.5-coder:32b --output_dir /shared/output/qwen2.5-coder:32b/local_jabuti_004"
+    - name: task-local_jabuti_005
+      dependsOn: [preflight-check]
+      cpuLimit: "1"
+      memoryLimit: "2Gi"
+      run: "python run_single_task.py --task_id local_jabuti_005 --model qwen2.5-coder:32b --output_dir /shared/output/qwen2.5-coder:32b/local_jabuti_005"
+    - name: task-local_jabuti_006
+      dependsOn: [preflight-check]
+      cpuLimit: "1"
+      memoryLimit: "2Gi"
+      run: "python run_single_task.py --task_id local_jabuti_006 --model qwen2.5-coder:32b --output_dir /shared/output/qwen2.5-coder:32b/local_jabuti_006"
+    - name: task-local_jabuti_007
+      dependsOn: [preflight-check]
+      cpuLimit: "1"
+      memoryLimit: "2Gi"
+      run: "python run_single_task.py --task_id local_jabuti_007 --model qwen2.5-coder:32b --output_dir /shared/output/qwen2.5-coder:32b/local_jabuti_007"
+    - name: task-local_jabuti_008
+      dependsOn: [preflight-check]
+      cpuLimit: "1"
+      memoryLimit: "2Gi"
+      run: "python run_single_task.py --task_id local_jabuti_008 --model qwen2.5-coder:32b --output_dir /shared/output/qwen2.5-coder:32b/local_jabuti_008"
+    - name: task-local_jabuti_009
+      dependsOn: [preflight-check]
+      cpuLimit: "1"
+      memoryLimit: "2Gi"
+      run: "python run_single_task.py --task_id local_jabuti_009 --model qwen2.5-coder:32b --output_dir /shared/output/qwen2.5-coder:32b/local_jabuti_009"
+    - name: task-local_jabuti_010
+      dependsOn: [preflight-check]
+      cpuLimit: "1"
+      memoryLimit: "2Gi"
+      run: "python run_single_task.py --task_id local_jabuti_010 --model qwen2.5-coder:32b --output_dir /shared/output/qwen2.5-coder:32b/local_jabuti_010"
+    - name: task-local_jabuti_011
+      dependsOn: [preflight-check]
+      cpuLimit: "1"
+      memoryLimit: "2Gi"
+      run: "python run_single_task.py --task_id local_jabuti_011 --model qwen2.5-coder:32b --output_dir /shared/output/qwen2.5-coder:32b/local_jabuti_011"
+    - name: task-local_jabuti_012
+      dependsOn: [preflight-check]
+      cpuLimit: "1"
+      memoryLimit: "2Gi"
+      run: "python run_single_task.py --task_id local_jabuti_012 --model qwen2.5-coder:32b --output_dir /shared/output/qwen2.5-coder:32b/local_jabuti_012"
+    - name: task-local_jabuti_013
+      dependsOn: [preflight-check]
+      cpuLimit: "1"
+      memoryLimit: "2Gi"
+      run: "python run_single_task.py --task_id local_jabuti_013 --model qwen2.5-coder:32b --output_dir /shared/output/qwen2.5-coder:32b/local_jabuti_013"
+    - name: task-local_jabuti_014
+      dependsOn: [preflight-check]
+      cpuLimit: "1"
+      memoryLimit: "2Gi"
+      run: "python run_single_task.py --task_id local_jabuti_014 --model qwen2.5-coder:32b --output_dir /shared/output/qwen2.5-coder:32b/local_jabuti_014"
+    - name: task-local_jabuti_015
+      dependsOn: [preflight-check]
+      cpuLimit: "1"
+      memoryLimit: "2Gi"
+      run: "python run_single_task.py --task_id local_jabuti_015 --model qwen2.5-coder:32b --output_dir /shared/output/qwen2.5-coder:32b/local_jabuti_015"
+    - name: task-local_jabuti_016
+      dependsOn: [preflight-check]
+      cpuLimit: "1"
+      memoryLimit: "2Gi"
+      run: "python run_single_task.py --task_id local_jabuti_016 --model qwen2.5-coder:32b --output_dir /shared/output/qwen2.5-coder:32b/local_jabuti_016"
+    - name: task-local_jabuti_017
+      dependsOn: [preflight-check]
+      cpuLimit: "1"
+      memoryLimit: "2Gi"
+      run: "python run_single_task.py --task_id local_jabuti_017 --model qwen2.5-coder:32b --output_dir /shared/output/qwen2.5-coder:32b/local_jabuti_017"
+    - name: task-local_jabuti_018
+      dependsOn: [preflight-check]
+      cpuLimit: "1"
+      memoryLimit: "2Gi"
+      run: "python run_single_task.py --task_id local_jabuti_018 --model qwen2.5-coder:32b --output_dir /shared/output/qwen2.5-coder:32b/local_jabuti_018"
+    - name: task-local_jabuti_019
+      dependsOn: [preflight-check]
+      cpuLimit: "1"
+      memoryLimit: "2Gi"
+      run: "python run_single_task.py --task_id local_jabuti_019 --model qwen2.5-coder:32b --output_dir /shared/output/qwen2.5-coder:32b/local_jabuti_019"
+    - name: task-local_jabuti_020
+      dependsOn: [preflight-check]
+      cpuLimit: "1"
+      memoryLimit: "2Gi"
+      run: "python run_single_task.py --task_id local_jabuti_020 --model qwen2.5-coder:32b --output_dir /shared/output/qwen2.5-coder:32b/local_jabuti_020"
+    - name: task-local_jabuti_021
+      dependsOn: [preflight-check]
+      cpuLimit: "1"
+      memoryLimit: "2Gi"
+      run: "python run_single_task.py --task_id local_jabuti_021 --model qwen2.5-coder:32b --output_dir /shared/output/qwen2.5-coder:32b/local_jabuti_021"
+    - name: task-local_jabuti_022
+      dependsOn: [preflight-check]
+      cpuLimit: "1"
+      memoryLimit: "2Gi"
+      run: "python run_single_task.py --task_id local_jabuti_022 --model qwen2.5-coder:32b --output_dir /shared/output/qwen2.5-coder:32b/local_jabuti_022"
+    - name: task-local_jabuti_023
+      dependsOn: [preflight-check]
+      cpuLimit: "1"
+      memoryLimit: "2Gi"
+      run: "python run_single_task.py --task_id local_jabuti_023 --model qwen2.5-coder:32b --output_dir /shared/output/qwen2.5-coder:32b/local_jabuti_023"
+    - name: task-local_jabuti_024
+      dependsOn: [preflight-check]
+      cpuLimit: "1"
+      memoryLimit: "2Gi"
+      run: "python run_single_task.py --task_id local_jabuti_024 --model qwen2.5-coder:32b --output_dir /shared/output/qwen2.5-coder:32b/local_jabuti_024"
+    - name: task-local_jabuti_025
+      dependsOn: [preflight-check]
+      cpuLimit: "1"
+      memoryLimit: "2Gi"
+      run: "python run_single_task.py --task_id local_jabuti_025 --model qwen2.5-coder:32b --output_dir /shared/output/qwen2.5-coder:32b/local_jabuti_025"
+    - name: task-local_jabuti_026
+      dependsOn: [preflight-check]
+      cpuLimit: "1"
+      memoryLimit: "2Gi"
+      run: "python run_single_task.py --task_id local_jabuti_026 --model qwen2.5-coder:32b --output_dir /shared/output/qwen2.5-coder:32b/local_jabuti_026"
+    - name: task-local_jabuti_027
+      dependsOn: [preflight-check]
+      cpuLimit: "1"
+      memoryLimit: "2Gi"
+      run: "python run_single_task.py --task_id local_jabuti_027 --model qwen2.5-coder:32b --output_dir /shared/output/qwen2.5-coder:32b/local_jabuti_027"
+    - name: task-local_jabuti_028
+      dependsOn: [preflight-check]
+      cpuLimit: "1"
+      memoryLimit: "2Gi"
+      run: "python run_single_task.py --task_id local_jabuti_028 --model qwen2.5-coder:32b --output_dir /shared/output/qwen2.5-coder:32b/local_jabuti_028"
+    - name: task-local_jabuti_029
+      dependsOn: [preflight-check]
+      cpuLimit: "1"
+      memoryLimit: "2Gi"
+      run: "python run_single_task.py --task_id local_jabuti_029 --model qwen2.5-coder:32b --output_dir /shared/output/qwen2.5-coder:32b/local_jabuti_029"
+    - name: task-local_jabuti_030
+      dependsOn: [preflight-check]
+      cpuLimit: "1"
+      memoryLimit: "2Gi"
+      run: "python run_single_task.py --task_id local_jabuti_030 --model qwen2.5-coder:32b --output_dir /shared/output/qwen2.5-coder:32b/local_jabuti_030"
+    - name: task-local_jabuti_031
+      dependsOn: [preflight-check]
+      cpuLimit: "1"
+      memoryLimit: "2Gi"
+      run: "python run_single_task.py --task_id local_jabuti_031 --model qwen2.5-coder:32b --output_dir /shared/output/qwen2.5-coder:32b/local_jabuti_031"
+    - name: task-local_jabuti_032
+      dependsOn: [preflight-check]
+      cpuLimit: "1"
+      memoryLimit: "2Gi"
+      run: "python run_single_task.py --task_id local_jabuti_032 --model qwen2.5-coder:32b --output_dir /shared/output/qwen2.5-coder:32b/local_jabuti_032"
+    - name: task-local_jabuti_033
+      dependsOn: [preflight-check]
+      cpuLimit: "1"
+      memoryLimit: "2Gi"
+      run: "python run_single_task.py --task_id local_jabuti_033 --model qwen2.5-coder:32b --output_dir /shared/output/qwen2.5-coder:32b/local_jabuti_033"
+    - name: task-local_jabuti_034
+      dependsOn: [preflight-check]
+      cpuLimit: "1"
+      memoryLimit: "2Gi"
+      run: "python run_single_task.py --task_id local_jabuti_034 --model qwen2.5-coder:32b --output_dir /shared/output/qwen2.5-coder:32b/local_jabuti_034"
+    - name: task-local_jabuti_035
+      dependsOn: [preflight-check]
+      cpuLimit: "1"
+      memoryLimit: "2Gi"
+      run: "python run_single_task.py --task_id local_jabuti_035 --model qwen2.5-coder:32b --output_dir /shared/output/qwen2.5-coder:32b/local_jabuti_035"
+    - name: task-local_jabuti_036
+      dependsOn: [preflight-check]
+      cpuLimit: "1"
+      memoryLimit: "2Gi"
+      run: "python run_single_task.py --task_id local_jabuti_036 --model qwen2.5-coder:32b --output_dir /shared/output/qwen2.5-coder:32b/local_jabuti_036"
+    - name: task-local_jabuti_037
+      dependsOn: [preflight-check]
+      cpuLimit: "1"
+      memoryLimit: "2Gi"
+      run: "python run_single_task.py --task_id local_jabuti_037 --model qwen2.5-coder:32b --output_dir /shared/output/qwen2.5-coder:32b/local_jabuti_037"
+    - name: task-local_jabuti_038
+      dependsOn: [preflight-check]
+      cpuLimit: "1"
+      memoryLimit: "2Gi"
+      run: "python run_single_task.py --task_id local_jabuti_038 --model qwen2.5-coder:32b --output_dir /shared/output/qwen2.5-coder:32b/local_jabuti_038"
+    - name: task-local_jabuti_039
+      dependsOn: [preflight-check]
+      cpuLimit: "1"
+      memoryLimit: "2Gi"
+      run: "python run_single_task.py --task_id local_jabuti_039 --model qwen2.5-coder:32b --output_dir /shared/output/qwen2.5-coder:32b/local_jabuti_039"
+    - name: task-local_jabuti_040
+      dependsOn: [preflight-check]
+      cpuLimit: "1"
+      memoryLimit: "2Gi"
+      run: "python run_single_task.py --task_id local_jabuti_040 --model qwen2.5-coder:32b --output_dir /shared/output/qwen2.5-coder:32b/local_jabuti_040"
+    - name: task-local_jabuti_041
+      dependsOn: [preflight-check]
+      cpuLimit: "1"
+      memoryLimit: "2Gi"
+      run: "python run_single_task.py --task_id local_jabuti_041 --model qwen2.5-coder:32b --output_dir /shared/output/qwen2.5-coder:32b/local_jabuti_041"
+    - name: task-local_jabuti_042
+      dependsOn: [preflight-check]
+      cpuLimit: "1"
+      memoryLimit: "2Gi"
+      run: "python run_single_task.py --task_id local_jabuti_042 --model qwen2.5-coder:32b --output_dir /shared/output/qwen2.5-coder:32b/local_jabuti_042"
+    - name: task-local_jabuti_043
+      dependsOn: [preflight-check]
+      cpuLimit: "1"
+      memoryLimit: "2Gi"
+      run: "python run_single_task.py --task_id local_jabuti_043 --model qwen2.5-coder:32b --output_dir /shared/output/qwen2.5-coder:32b/local_jabuti_043"
+    - name: task-local_jabuti_044
+      dependsOn: [preflight-check]
+      cpuLimit: "1"
+      memoryLimit: "2Gi"
+      run: "python run_single_task.py --task_id local_jabuti_044 --model qwen2.5-coder:32b --output_dir /shared/output/qwen2.5-coder:32b/local_jabuti_044"
+    - name: task-local_jabuti_045
+      dependsOn: [preflight-check]
+      cpuLimit: "1"
+      memoryLimit: "2Gi"
+      run: "python run_single_task.py --task_id local_jabuti_045 --model qwen2.5-coder:32b --output_dir /shared/output/qwen2.5-coder:32b/local_jabuti_045"
+    - name: task-local_jabuti_046
+      dependsOn: [preflight-check]
+      cpuLimit: "1"
+      memoryLimit: "2Gi"
+      run: "python run_single_task.py --task_id local_jabuti_046 --model qwen2.5-coder:32b --output_dir /shared/output/qwen2.5-coder:32b/local_jabuti_046"
+    - name: task-local_jabuti_047
+      dependsOn: [preflight-check]
+      cpuLimit: "1"
+      memoryLimit: "2Gi"
+      run: "python run_single_task.py --task_id local_jabuti_047 --model qwen2.5-coder:32b --output_dir /shared/output/qwen2.5-coder:32b/local_jabuti_047"
+    - name: task-local_jabuti_048
+      dependsOn: [preflight-check]
+      cpuLimit: "1"
+      memoryLimit: "2Gi"
+      run: "python run_single_task.py --task_id local_jabuti_048 --model qwen2.5-coder:32b --output_dir /shared/output/qwen2.5-coder:32b/local_jabuti_048"
+    - name: task-local_jabuti_049
+      dependsOn: [preflight-check]
+      cpuLimit: "1"
+      memoryLimit: "2Gi"
+      run: "python run_single_task.py --task_id local_jabuti_049 --model qwen2.5-coder:32b --output_dir /shared/output/qwen2.5-coder:32b/local_jabuti_049"
+    - name: task-local_jabuti_050
+      dependsOn: [preflight-check]
+      cpuLimit: "1"
+      memoryLimit: "2Gi"
+      run: "python run_single_task.py --task_id local_jabuti_050 --model qwen2.5-coder:32b --output_dir /shared/output/qwen2.5-coder:32b/local_jabuti_050"
+    - name: task-local_jabuti_051
+      dependsOn: [preflight-check]
+      cpuLimit: "1"
+      memoryLimit: "2Gi"
+      run: "python run_single_task.py --task_id local_jabuti_051 --model qwen2.5-coder:32b --output_dir /shared/output/qwen2.5-coder:32b/local_jabuti_051"
+    - name: task-local_jabuti_052
+      dependsOn: [preflight-check]
+      cpuLimit: "1"
+      memoryLimit: "2Gi"
+      run: "python run_single_task.py --task_id local_jabuti_052 --model qwen2.5-coder:32b --output_dir /shared/output/qwen2.5-coder:32b/local_jabuti_052"
+    - name: task-local_jabuti_053
+      dependsOn: [preflight-check]
+      cpuLimit: "1"
+      memoryLimit: "2Gi"
+      run: "python run_single_task.py --task_id local_jabuti_053 --model qwen2.5-coder:32b --output_dir /shared/output/qwen2.5-coder:32b/local_jabuti_053"
+    - name: task-local_jabuti_054
+      dependsOn: [preflight-check]
+      cpuLimit: "1"
+      memoryLimit: "2Gi"
+      run: "python run_single_task.py --task_id local_jabuti_054 --model qwen2.5-coder:32b --output_dir /shared/output/qwen2.5-coder:32b/local_jabuti_054"
+    - name: task-local_jabuti_055
+      dependsOn: [preflight-check]
+      cpuLimit: "1"
+      memoryLimit: "2Gi"
+      run: "python run_single_task.py --task_id local_jabuti_055 --model qwen2.5-coder:32b --output_dir /shared/output/qwen2.5-coder:32b/local_jabuti_055"
+    - name: task-local_jabuti_056
+      dependsOn: [preflight-check]
+      cpuLimit: "1"
+      memoryLimit: "2Gi"
+      run: "python run_single_task.py --task_id local_jabuti_056 --model qwen2.5-coder:32b --output_dir /shared/output/qwen2.5-coder:32b/local_jabuti_056"
+    - name: task-local_jabuti_057
+      dependsOn: [preflight-check]
+      cpuLimit: "1"
+      memoryLimit: "2Gi"
+      run: "python run_single_task.py --task_id local_jabuti_057 --model qwen2.5-coder:32b --output_dir /shared/output/qwen2.5-coder:32b/local_jabuti_057"
+    - name: task-local_jabuti_058
+      dependsOn: [preflight-check]
+      cpuLimit: "1"
+      memoryLimit: "2Gi"
+      run: "python run_single_task.py --task_id local_jabuti_058 --model qwen2.5-coder:32b --output_dir /shared/output/qwen2.5-coder:32b/local_jabuti_058"
+    - name: task-local_jabuti_059
+      dependsOn: [preflight-check]
+      cpuLimit: "1"
+      memoryLimit: "2Gi"
+      run: "python run_single_task.py --task_id local_jabuti_059 --model qwen2.5-coder:32b --output_dir /shared/output/qwen2.5-coder:32b/local_jabuti_059"
+    - name: task-local_jabuti_060
+      dependsOn: [preflight-check]
+      cpuLimit: "1"
+      memoryLimit: "2Gi"
+      run: "python run_single_task.py --task_id local_jabuti_060 --model qwen2.5-coder:32b --output_dir /shared/output/qwen2.5-coder:32b/local_jabuti_060"
+    - name: task-local_jabuti_061
+      dependsOn: [preflight-check]
+      cpuLimit: "1"
+      memoryLimit: "2Gi"
+      run: "python run_single_task.py --task_id local_jabuti_061 --model qwen2.5-coder:32b --output_dir /shared/output/qwen2.5-coder:32b/local_jabuti_061"
+    - name: task-local_jabuti_062
+      dependsOn: [preflight-check]
+      cpuLimit: "1"
+      memoryLimit: "2Gi"
+      run: "python run_single_task.py --task_id local_jabuti_062 --model qwen2.5-coder:32b --output_dir /shared/output/qwen2.5-coder:32b/local_jabuti_062"
+    - name: task-local_jabuti_063
+      dependsOn: [preflight-check]
+      cpuLimit: "1"
+      memoryLimit: "2Gi"
+      run: "python run_single_task.py --task_id local_jabuti_063 --model qwen2.5-coder:32b --output_dir /shared/output/qwen2.5-coder:32b/local_jabuti_063"
+    - name: task-local_jabuti_064
+      dependsOn: [preflight-check]
+      cpuLimit: "1"
+      memoryLimit: "2Gi"
+      run: "python run_single_task.py --task_id local_jabuti_064 --model qwen2.5-coder:32b --output_dir /shared/output/qwen2.5-coder:32b/local_jabuti_064"
+    - name: task-local_jabuti_065
+      dependsOn: [preflight-check]
+      cpuLimit: "1"
+      memoryLimit: "2Gi"
+      run: "python run_single_task.py --task_id local_jabuti_065 --model qwen2.5-coder:32b --output_dir /shared/output/qwen2.5-coder:32b/local_jabuti_065"
+    - name: task-local_jabuti_066
+      dependsOn: [preflight-check]
+      cpuLimit: "1"
+      memoryLimit: "2Gi"
+      run: "python run_single_task.py --task_id local_jabuti_066 --model qwen2.5-coder:32b --output_dir /shared/output/qwen2.5-coder:32b/local_jabuti_066"
+    - name: task-local_jabuti_067
+      dependsOn: [preflight-check]
+      cpuLimit: "1"
+      memoryLimit: "2Gi"
+      run: "python run_single_task.py --task_id local_jabuti_067 --model qwen2.5-coder:32b --output_dir /shared/output/qwen2.5-coder:32b/local_jabuti_067"
+    - name: task-local_jabuti_068
+      dependsOn: [preflight-check]
+      cpuLimit: "1"
+      memoryLimit: "2Gi"
+      run: "python run_single_task.py --task_id local_jabuti_068 --model qwen2.5-coder:32b --output_dir /shared/output/qwen2.5-coder:32b/local_jabuti_068"
+    - name: evaluation
+      dependsOn:
+        - task-local_jabuti_000
+        - task-local_jabuti_001
+        - task-local_jabuti_002
+        - task-local_jabuti_003
+        - task-local_jabuti_004
+        - task-local_jabuti_005
+        - task-local_jabuti_006
+        - task-local_jabuti_007
+        - task-local_jabuti_008
+        - task-local_jabuti_009
+        - task-local_jabuti_010
+        - task-local_jabuti_011
+        - task-local_jabuti_012
+        - task-local_jabuti_013
+        - task-local_jabuti_014
+        - task-local_jabuti_015
+        - task-local_jabuti_016
+        - task-local_jabuti_017
+        - task-local_jabuti_018
+        - task-local_jabuti_019
+        - task-local_jabuti_020
+        - task-local_jabuti_021
+        - task-local_jabuti_022
+        - task-local_jabuti_023
+        - task-local_jabuti_024
+        - task-local_jabuti_025
+        - task-local_jabuti_026
+        - task-local_jabuti_027
+        - task-local_jabuti_028
+        - task-local_jabuti_029
+        - task-local_jabuti_030
+        - task-local_jabuti_031
+        - task-local_jabuti_032
+        - task-local_jabuti_033
+        - task-local_jabuti_034
+        - task-local_jabuti_035
+        - task-local_jabuti_036
+        - task-local_jabuti_037
+        - task-local_jabuti_038
+        - task-local_jabuti_039
+        - task-local_jabuti_040
+        - task-local_jabuti_041
+        - task-local_jabuti_042
+        - task-local_jabuti_043
+        - task-local_jabuti_044
+        - task-local_jabuti_045
+        - task-local_jabuti_046
+        - task-local_jabuti_047
+        - task-local_jabuti_048
+        - task-local_jabuti_049
+        - task-local_jabuti_050
+        - task-local_jabuti_051
+        - task-local_jabuti_052
+        - task-local_jabuti_053
+        - task-local_jabuti_054
+        - task-local_jabuti_055
+        - task-local_jabuti_056
+        - task-local_jabuti_057
+        - task-local_jabuti_058
+        - task-local_jabuti_059
+        - task-local_jabuti_060
+        - task-local_jabuti_061
+        - task-local_jabuti_062
+        - task-local_jabuti_063
+        - task-local_jabuti_064
+        - task-local_jabuti_065
+        - task-local_jabuti_066
+        - task-local_jabuti_067
+        - task-local_jabuti_068
+      cpuLimit: "1"
+      memoryLimit: "2Gi"
+      run: "python evaluate_jabuti.py --result_dir /shared/output/qwen2.5-coder:32b --gold_dir evaluation/gold --jabuti_jsonl examples/jabuti.jsonl"

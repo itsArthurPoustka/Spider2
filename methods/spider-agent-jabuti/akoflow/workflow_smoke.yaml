@@ -1,0 +1,32 @@
+name: jabuti-sql-benchmark-qwen2.5-coder-32b
+spec:
+  namespace: escience-jabuti
+  image: "spider-agent-runner:latest"
+  activities:
+    - name: preflight-check
+      cpuLimit: "1"
+      memoryLimit: "2Gi"
+      run: "pg_isready -h ${JABUTI_PG_HOST:-jabuti-postgres} -p ${JABUTI_PG_PORT:-5432} -U postgres -d jabuti_sql && curl -sf ${LLM_BASE_URL:-http://localhost:11434/v1}/models > /dev/null"
+    - name: task-local_jabuti_000
+      dependsOn: [preflight-check]
+      cpuLimit: "1"
+      memoryLimit: "2Gi"
+      run: "python run_single_task.py --task_id local_jabuti_000 --model qwen2.5-coder:32b --output_dir /shared/output/qwen2.5-coder:32b/local_jabuti_000"
+    - name: task-local_jabuti_001
+      dependsOn: [preflight-check]
+      cpuLimit: "1"
+      memoryLimit: "2Gi"
+      run: "python run_single_task.py --task_id local_jabuti_001 --model qwen2.5-coder:32b --output_dir /shared/output/qwen2.5-coder:32b/local_jabuti_001"
+    - name: task-local_jabuti_002
+      dependsOn: [preflight-check]
+      cpuLimit: "1"
+      memoryLimit: "2Gi"
+      run: "python run_single_task.py --task_id local_jabuti_002 --model qwen2.5-coder:32b --output_dir /shared/output/qwen2.5-coder:32b/local_jabuti_002"
+    - name: evaluation
+      dependsOn:
+        - task-local_jabuti_000
+        - task-local_jabuti_001
+        - task-local_jabuti_002
+      cpuLimit: "1"
+      memoryLimit: "2Gi"
+      run: "python evaluate_jabuti.py --result_dir /shared/output/qwen2.5-coder:32b --gold_dir evaluation/gold --jabuti_jsonl examples/jabuti.jsonl"
