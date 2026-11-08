@@ -13,6 +13,7 @@ An autonomous agent framework adapted from Spider 2.0 to evaluate LLMs on the **
 - **Dockerized Agent Execution**: Each task runs inside an isolated container (`spider_agent_jabuti-image`) connected via a shared bridge network (`spider-net`).
 - **Atomic Single-Task & AkôFlow DAG Orchestration**: Supports both sequential batch runs (`run.py`) and atomic container-isolated single-task runs (`run_single_task.py`) orchestrated as parallel fan-out/fan-in workflows via **AkôFlow** (`generate_akoflow_workflow.py`).
 - **W3C PROV-DM Scientific Provenance & Telemetry**: Automatically records decomposed latencies (`t_llm_ms`, `t_db_ms`, `t_total_ms`), token usage, SQL export tool adherence (`COPY_TO_STDOUT` vs. `PSQL_PLAIN`), and W3C PROV-JSON lineage graphs (`task_provenance.json`).
+- **Queryable SQLite Provenance Store (`ingest_provenance_sqlite.py`)**: Consolidates scattered task provenance JSON files and ReAct trajectories into a self-contained, relational SQLite database (`provenance.db`) with analytical views for instant SQL querying without contaminating the domain PostgreSQL instance.
 - **Large-Table Awareness**: Tailored system prompts and materialized views to handle high-cardinality tables safely (such as `instituicao_estoca_produto` with 143M+ rows).
 - **Stratified & Semantic Consistency Evaluation**: Measures overall execution accuracy, per-difficulty accuracy, per-persona accuracy, and semantic consistency (whether an agent answers all 3 persona phrasings of the same underlying inquiry).
 
@@ -56,9 +57,11 @@ methods/spider-agent-jabuti/
 ├── setup_jabuti.py                    # Benchmark setup and gold standard generation
 ├── get_jabuti_submission_data.py      # Result extractor for predictions
 ├── evaluate_jabuti.py                 # Ground truth evaluation and stratified scoring
+├── ingest_provenance_sqlite.py        # Ingests W3C PROV-JSON & ReAct traces into SQLite
 ├── test_provenance.py                 # Unit tests for provenance, telemetry & single-task runner
 ├── test_generate_akoflow_workflow.py  # Unit tests for AkôFlow workflow generator
 ├── test_verify_akoflow_run.py         # Unit tests for AkôFlow run & provenance verifier
+├── test_ingest_provenance_sqlite.py   # Unit tests for SQLite provenance ingestion
 ├── akoflow/                           # AkôFlow workflow specifications & verification tools
 │   ├── README_AKOFLOW.md              # Step-by-step remote AkôFlow deployment & execution guide
 │   ├── verify_akoflow_run.py          # Artifact, latency & W3C PROV verification harness
@@ -284,6 +287,71 @@ python evaluate_jabuti.py \
 
 ---
 
+## 🗄️ Queryable Provenance Store (`ingest_provenance_sqlite.py`)
+
+While W3C PROV-JSON files (`task_provenance.json`) and granular telemetry (`metrics.json`) provide a standardized, auditable lineage record per task, analyzing 69 individual JSON files manually is cumbersome.
+
+The **SQLite Provenance Ingestion Harness** (`ingest_provenance_sqlite.py`) consolidates task-level provenance, telemetry, evaluation scores, and step-by-step ReAct trajectories into a self-contained, relational SQLite database (`provenance.db`).
+
+### Why an Isolated Database?
+- **Domain Database Integrity**: Provenance metadata is strictly isolated from `jabuti-postgres` (`jabuti_sql` on port 5432). Storing logs or telemetry inside `jabuti_sql` would pollute the schema, risk exposing tables to the agent during `\dt` commands, and allow potential corruption from agent SQL queries.
+- **Zero-Dependency Portability**: Built with Python's standard `sqlite3` library, requiring no external database servers, background services, or network configuration.
+- **Complete Lineage Preservation**: Exposes structured relational columns for rapid filtering and aggregation while preserving the raw W3C PROV-JSON payload in a `raw_prov_json` column.
+
+### Ingestion Usage
+
+```bash
+# Ingest a specific run into <results_dir>/provenance.db:
+python ingest_provenance_sqlite.py \
+    --results_dir output/qwen2.5-coder_32b-full-run
+
+# Ingest into a shared multi-run database (for side-by-side model comparison):
+python ingest_provenance_sqlite.py \
+    --results_dir output/qwen2.5-coder_32b-full-run \
+    --db_path output/benchmark_provenance.db
+```
+
+### Database Schema & Analytical Views
+
+| Entity | Type | Description |
+|---|---|---|
+| **`runs`** | Table | Top-level benchmark experiment record (`run_id`, `model`, `provider`, `accuracy`, `avg_llm_sec`, `avg_db_sec`, `total_duration_sec`). |
+| **`task_provenance`** | Table | Granular per-task record (69 rows) with persona, difficulty, parent group, prompt text & hash, decomposed latencies ($T_{Total}$, $T_{LLM}$, $T_{DB}$, $T_{Other}$), token counts, export syntax, exit code, correctness (`is_correct`), and full `raw_prov_json`. |
+| **`task_steps`** | Table | Full ReAct cognitive steps trace (thoughts, actions, action types, parsed SQL queries, observations). |
+| **`v_persona_summary`** | View | Pre-computed aggregation by persona (task count, accuracy %, avg LLM latency, avg ReAct steps). |
+| **`v_difficulty_summary`** | View | Pre-computed aggregation by difficulty tier (`simple`, `medium`, `hard`). |
+| **`v_sql_actions`** | View | Extracted SQL commands and queries executed by the model during the benchmark. |
+
+### Querying the Provenance Store
+
+#### 1. Via CLI (`--query` flag)
+```bash
+python ingest_provenance_sqlite.py \
+    --results_dir output/qwen2.5-coder_32b-full-run \
+    --query "SELECT * FROM v_difficulty_summary;"
+```
+
+#### 2. Via `sqlite3` CLI
+```bash
+sqlite3 output/qwen2.5-coder_32b-full-run/provenance.db \
+  "SELECT persona, COUNT(*), ROUND(AVG(is_correct)*100, 1) AS acc_pct, ROUND(AVG(t_llm_ms)/1000, 1) AS avg_llm_sec FROM task_provenance GROUP BY persona;"
+```
+
+#### 3. In Python / Jupyter Notebooks
+```python
+import sqlite3
+import pandas as pd
+
+conn = sqlite3.connect("output/qwen2.5-coder_32b-full-run/provenance.db")
+df_prov = pd.read_sql("SELECT * FROM task_provenance", conn)
+df_steps = pd.read_sql("SELECT * FROM task_steps", conn)
+```
+
+#### 4. In Database GUIs
+Open `provenance.db` directly in **DBeaver**, **TablePlus**, **DB Browser for SQLite**, or the **VS Code SQLite Viewer** extension to run interactive queries and export charts.
+
+---
+
 ## ⚙️ Configuration & Environment Variables
 
 | Variable | Default | Description |
@@ -307,6 +375,7 @@ Verify W3C PROV generation, latency/token instrumentation, export syntax classif
 python3 test_provenance.py -v
 python3 test_generate_akoflow_workflow.py -v
 python3 test_verify_akoflow_run.py -v
+python3 test_ingest_provenance_sqlite.py -v
 ```
 
 ### 2. Dry-Run Validation (`--dry_run`)
