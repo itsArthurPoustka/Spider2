@@ -58,7 +58,10 @@ methods/spider-agent-jabuti/
 ├── evaluate_jabuti.py                 # Ground truth evaluation and stratified scoring
 ├── test_provenance.py                 # Unit tests for provenance, telemetry & single-task runner
 ├── test_generate_akoflow_workflow.py  # Unit tests for AkôFlow workflow generator
-├── akoflow/                           # Generated AkôFlow workflow specifications
+├── test_verify_akoflow_run.py         # Unit tests for AkôFlow run & provenance verifier
+├── akoflow/                           # AkôFlow workflow specifications & verification tools
+│   ├── README_AKOFLOW.md              # Step-by-step remote AkôFlow deployment & execution guide
+│   ├── verify_akoflow_run.py          # Artifact, latency & W3C PROV verification harness
 │   ├── workflow_jabuti.yaml           # Full 69-task parallel DAG specification
 │   └── workflow_smoke.yaml            # 3-task smoke test DAG specification
 ├── jabuti_db/                         # Database infrastructure
@@ -232,6 +235,17 @@ python generate_akoflow_workflow.py \
 > - `--namespace`: AkôFlow namespace (default: `escience-jabuti`).
 > - `--image`: Base runner image (default: `spider-agent-runner:latest`).
 > - `--cpu_limit` / `--memory_limit`: Per-activity resource limits (defaults: `"1"` and `"2Gi"`).
+> - See [`akoflow/README_AKOFLOW.md`](./akoflow/README_AKOFLOW.md) for complete remote server deployment, NFS/SSHFS shared volume setup, workflow submission, and provenance verification instructions.
+
+### AkôFlow Run & Provenance Verification (`akoflow/verify_akoflow_run.py`)
+
+Verify that all expected tasks produced non-empty `result.csv`, `metrics.json`, and valid W3C PROV `task_provenance.json` records (with matching SHA256 digests), aggregate decomposed latencies ($T_{LLM}$ vs. $T_{DB}$), and optionally check AkôFlow's `/provenance/` REST API:
+
+```bash
+python akoflow/verify_akoflow_run.py \
+    --results_dir output/test_phase2 \
+    --expected_tasks 0,1,2
+```
 
 ---
 
@@ -292,6 +306,7 @@ Verify W3C PROV generation, latency/token instrumentation, export syntax classif
 ```bash
 python3 test_provenance.py -v
 python3 test_generate_akoflow_workflow.py -v
+python3 test_verify_akoflow_run.py -v
 ```
 
 ### 2. Dry-Run Validation (`--dry_run`)
