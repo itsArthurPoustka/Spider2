@@ -5,8 +5,15 @@ test_ingest_provenance_sqlite.py — Unit Tests for SQLite Provenance Ingestion
 
 import os
 import sqlite3
+import sys
 import tempfile
 import unittest
+
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+PARENT_DIR = os.path.dirname(SCRIPT_DIR)
+for p in (PARENT_DIR, os.path.join(PARENT_DIR, "akoflow"), os.path.join(PARENT_DIR, "provenance")):
+    if p not in sys.path:
+        sys.path.insert(0, p)
 
 from ingest_provenance_sqlite import (
     extract_sql_from_action,

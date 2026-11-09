@@ -8,6 +8,12 @@ import types
 import unittest
 from unittest.mock import MagicMock, patch
 
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+PARENT_DIR = os.path.dirname(SCRIPT_DIR)
+for p in (PARENT_DIR, os.path.join(PARENT_DIR, "akoflow"), os.path.join(PARENT_DIR, "provenance")):
+    if p not in sys.path:
+        sys.path.insert(0, p)
+
 # Mock optional external SDK dependencies if not installed in the bare host Python
 for mod_name in [
     "docker",

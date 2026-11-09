@@ -51,43 +51,56 @@ methods/spider-agent-jabuti/
 ├── README.md                          # Main documentation and workflow guide
 ├── SMOKE_TEST_INSTRUCTIONS.md         # Detailed smoke test walkthrough
 ├── requirements.txt                   # Host Python environment dependencies
-├── run.py                             # Benchmark runner and container orchestrator
-├── run_single_task.py                 # Atomic single-task runner with W3C PROV & metrics
-├── generate_akoflow_workflow.py       # AkôFlow parallel DAG YAML generator
-├── setup_jabuti.py                    # Benchmark setup and gold standard generation
-├── get_jabuti_submission_data.py      # Result extractor for predictions
-├── evaluate_jabuti.py                 # Ground truth evaluation and stratified scoring
-├── ingest_provenance_sqlite.py        # Ingests W3C PROV-JSON & ReAct traces into SQLite
-├── provenance_queries.py              # CLI & module catalog of analytical provenance queries
-├── provenance_queries.sql             # Standalone SQL catalog for DBeaver / TablePlus / SQLite
-├── test_provenance.py                 # Unit tests for provenance, telemetry & single-task runner
-├── test_generate_akoflow_workflow.py  # Unit tests for AkôFlow workflow generator
-├── test_verify_akoflow_run.py         # Unit tests for AkôFlow run & provenance verifier
-├── test_ingest_provenance_sqlite.py   # Unit tests for SQLite provenance ingestion
-├── test_provenance_queries.py         # Unit tests for provenance query catalog
-├── akoflow/                           # AkôFlow workflow specifications & verification tools
+│
+├── 🚀 CORE EXECUTION & EVALUATION
+│   ├── run.py                         # Benchmark runner and container orchestrator
+│   ├── run_single_task.py             # Atomic single-task runner with W3C PROV & metrics
+│   ├── setup_jabuti.py                # Benchmark setup and gold standard generation
+│   ├── evaluate_jabuti.py             # Ground truth evaluation and stratified scoring
+│   └── get_jabuti_submission_data.py  # Result extractor for predictions
+│
+├── 🗄️ provenance/                      # Queryable SQLite Provenance & Analytical Store
+│   ├── README.md                      # Guide to SQLite store, schema, views, and queries
+│   ├── ingest_provenance_sqlite.py    # Ingests W3C PROV-JSON & ReAct traces into SQLite
+│   ├── provenance_queries.py          # 18-query analytical catalog (CLI + Python module)
+│   └── provenance_queries.sql         # Standalone SQL catalog for DBeaver / TablePlus / SQLite
+│
+├── 🌊 akoflow/                        # AkôFlow Distributed Workflow Orchestration
 │   ├── README_AKOFLOW.md              # Step-by-step remote AkôFlow deployment & execution guide
+│   ├── generate_akoflow_workflow.py   # AkôFlow parallel DAG YAML generator
 │   ├── verify_akoflow_run.py          # Artifact, latency & W3C PROV verification harness
 │   ├── workflow_jabuti.yaml           # Full 69-task parallel DAG specification
 │   └── workflow_smoke.yaml            # 3-task smoke test DAG specification
-├── jabuti_db/                         # Database infrastructure
+│
+├── 🧪 tests/                          # Automated Unit & Integration Test Suite
+│   ├── __init__.py
+│   ├── test_provenance.py             # Unit tests for provenance, telemetry & single-task runner
+│   ├── test_generate_akoflow_workflow.py # Unit tests for AkôFlow workflow generator
+│   ├── test_verify_akoflow_run.py     # Unit tests for AkôFlow run & provenance verifier
+│   ├── test_ingest_provenance_sqlite.py  # Unit tests for SQLite provenance ingestion
+│   └── test_provenance_queries.py     # Unit tests for provenance query catalog
+│
+├── 🐘 jabuti_db/                      # Database Infrastructure
 │   ├── docker-compose.yml             # Standing PostgreSQL service
 │   └── load_dump.py                   # Schema and dump loader
-├── spider_agent/                      # Core agent package
+│
+├── 🤖 spider_agent/                   # Core Agent Package
 │   ├── agent/                         # ReAct agent loop, models, action space, prompts
 │   ├── configs/                       # Configuration utilities
 │   ├── controllers/                   # Execution controllers
 │   ├── envs/                          # Gym environment abstraction for Docker
 │   └── images/
 │       └── spider_agent_jabuti-image/ # Dockerfile and init script for agent container
-├── examples/                          # Task definitions and runtime folders
-│   ├── jabuti.jsonl                   # 69 task metadata records
-│   └── local_jabuti_000/ ... 068/     # Per-task runtime folders (DDL, task README)
-├── evaluation/
-│   ├── gold/                          # Reference CSVs (ground truth)
-│   └── predictions/                   # Extracted prediction outputs
-├── output/                            # Raw trajectories and agent results
-└── logs/                              # Execution logs
+│
+└── 📁 DATA & RUNTIME ARTIFACTS
+    ├── examples/                      # Task definitions and runtime folders
+    │   ├── jabuti.jsonl               # 69 task metadata records
+    │   └── local_jabuti_000/ ... 068/ # Per-task runtime folders (DDL, task README)
+    ├── evaluation/
+    │   ├── gold/                      # Reference CSVs (ground truth)
+    │   └── predictions/               # Extracted prediction outputs
+    ├── output/                        # Raw trajectories and agent results
+    └── logs/                          # Execution logs
 ```
 
 ---
@@ -402,11 +415,15 @@ python provenance_queries.py --export-markdown report.md
 ### 1. Run Unit & Integration Tests
 Verify W3C PROV generation, latency/token instrumentation, export syntax classification, single-task failure handling, and AkôFlow YAML generation without needing a live LLM or database:
 ```bash
-python3 test_provenance.py -v
-python3 test_generate_akoflow_workflow.py -v
-python3 test_verify_akoflow_run.py -v
-python3 test_ingest_provenance_sqlite.py -v
-python3 test_provenance_queries.py -v
+# Run all 17 tests across the test suite:
+python3 -m unittest discover -s tests/ -v
+
+# Or run individual test suites:
+python3 tests/test_provenance.py -v
+python3 tests/test_generate_akoflow_workflow.py -v
+python3 tests/test_verify_akoflow_run.py -v
+python3 tests/test_ingest_provenance_sqlite.py -v
+python3 tests/test_provenance_queries.py -v
 ```
 
 ### 2. Dry-Run Validation (`--dry_run`)

@@ -7,8 +7,8 @@ import unittest
 from unittest.mock import patch
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-AKOFLOW_DIR = os.path.join(SCRIPT_DIR, "akoflow")
-for p in (SCRIPT_DIR, AKOFLOW_DIR):
+PARENT_DIR = os.path.dirname(SCRIPT_DIR)
+for p in (PARENT_DIR, os.path.join(PARENT_DIR, "akoflow"), os.path.join(PARENT_DIR, "provenance")):
     if p not in sys.path:
         sys.path.insert(0, p)
 
