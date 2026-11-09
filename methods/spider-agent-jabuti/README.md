@@ -58,10 +58,13 @@ methods/spider-agent-jabuti/
 ├── get_jabuti_submission_data.py      # Result extractor for predictions
 ├── evaluate_jabuti.py                 # Ground truth evaluation and stratified scoring
 ├── ingest_provenance_sqlite.py        # Ingests W3C PROV-JSON & ReAct traces into SQLite
+├── provenance_queries.py              # CLI & module catalog of analytical provenance queries
+├── provenance_queries.sql             # Standalone SQL catalog for DBeaver / TablePlus / SQLite
 ├── test_provenance.py                 # Unit tests for provenance, telemetry & single-task runner
 ├── test_generate_akoflow_workflow.py  # Unit tests for AkôFlow workflow generator
 ├── test_verify_akoflow_run.py         # Unit tests for AkôFlow run & provenance verifier
 ├── test_ingest_provenance_sqlite.py   # Unit tests for SQLite provenance ingestion
+├── test_provenance_queries.py         # Unit tests for provenance query catalog
 ├── akoflow/                           # AkôFlow workflow specifications & verification tools
 │   ├── README_AKOFLOW.md              # Step-by-step remote AkôFlow deployment & execution guide
 │   ├── verify_akoflow_run.py          # Artifact, latency & W3C PROV verification harness
@@ -350,6 +353,33 @@ df_steps = pd.read_sql("SELECT * FROM task_steps", conn)
 #### 4. In Database GUIs
 Open `provenance.db` directly in **DBeaver**, **TablePlus**, **DB Browser for SQLite**, or the **VS Code SQLite Viewer** extension to run interactive queries and export charts.
 
+### 📚 Pre-Packaged Query Catalog (`provenance_queries.py` & `.sql`)
+
+To save researchers and professors from writing SQL queries from scratch, the framework includes a curated catalog of 18 analytical queries organized across 6 research themes:
+1. **Accuracy & Stratification**: `overall_summary`, `persona_performance`, `difficulty_breakdown`, `semantic_consistency`, `semantic_consistency_summary`.
+2. **Latency & Telemetry**: `decomposed_latency_summary` ($T_{LLM}$ vs $T_{DB}$), `slowest_tasks`, `db_heavy_tasks`.
+3. **Cognitive Trajectories & Tokens**: `token_consumption_by_persona`, `high_step_tasks` (reasoning loops $\ge 8$ steps), `react_action_distribution`.
+4. **Tool Adherence**: `export_syntax_compliance` (`COPY_TO_STDOUT` vs `PSQL_PLAIN`), `non_standard_exports`.
+5. **Failure Diagnostics**: `failed_tasks_detail`, `row_count_mismatches`, `empty_predictions`.
+6. **Scientific Lineage & Auditing**: `provenance_integrity_audit`, `model_version_audit`.
+
+```bash
+# List all 18 queries in the catalog:
+python provenance_queries.py --list
+
+# Run a specific query (e.g. semantic consistency):
+python provenance_queries.py --run semantic_consistency
+
+# Execute all queries and display formatted tables:
+python provenance_queries.py --run-all
+
+# Export a complete analytical Markdown report:
+python provenance_queries.py --export-markdown report.md
+
+# Standalone SQL file for DBeaver / TablePlus / SQLite CLI:
+# -> methods/spider-agent-jabuti/provenance_queries.sql
+```
+
 ---
 
 ## ⚙️ Configuration & Environment Variables
@@ -376,6 +406,7 @@ python3 test_provenance.py -v
 python3 test_generate_akoflow_workflow.py -v
 python3 test_verify_akoflow_run.py -v
 python3 test_ingest_provenance_sqlite.py -v
+python3 test_provenance_queries.py -v
 ```
 
 ### 2. Dry-Run Validation (`--dry_run`)

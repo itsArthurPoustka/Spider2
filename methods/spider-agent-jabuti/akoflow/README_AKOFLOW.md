@@ -286,3 +286,15 @@ python3 methods/spider-agent-jabuti/akoflow/verify_akoflow_run.py \
 3. **Inspect Stratified Accuracy Report**:
    The final `evaluation` activity automatically generates `/shared/output/<model>/evaluation_report.json` with overall accuracy, per-difficulty accuracy (`simple`, `medium`, `hard`), per-persona accuracy, and semantic group consistency.
 
+### 5.4 Ingest & Query Provenance via SQLite (`ingest_provenance_sqlite.py`)
+To query the collected W3C PROV records, decomposed latencies ($T_{LLM}$ vs $T_{DB}$), and ReAct cognitive trajectories using relational SQL without contaminating the analytical database:
+
+```bash
+# Ingest into <results_dir>/provenance.db and print instant summary:
+python3 methods/spider-agent-jabuti/ingest_provenance_sqlite.py \
+    --results_dir /shared/output/qwen2.5-coder:32b \
+    --query "SELECT * FROM v_persona_summary;"
+```
+Analytical views created: `v_persona_summary`, `v_difficulty_summary`, and `v_sql_actions`.
+
+
